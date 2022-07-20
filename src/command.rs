@@ -111,14 +111,14 @@ mod tests {
     #[test]
     fn test_command_from_empty_buffer() {
         let com = "";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_err(), true);
     }
 
     #[test]
     fn test_command_from_valid_with_args() {
         let com = "USER anonymous\r\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
@@ -128,13 +128,13 @@ mod tests {
     #[test]
     fn test_command_from_valid_without_args() {
         let com = "USER\r\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
         assert_eq!(result.arg, "".as_bytes());
         let com = "USER \r\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
@@ -144,13 +144,13 @@ mod tests {
     #[test]
     fn test_command_from_valid_without_crlf() {
         let com = "USER anonymous";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
         assert_eq!(result.arg, "anonymous".as_bytes());
         let com = "USER ";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
@@ -160,13 +160,13 @@ mod tests {
     #[test]
     fn test_command_from_valid_without_cr() {
         let com = "USER anonymous\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
         assert_eq!(result.arg, "anonymous".as_bytes());
         let com = "USER\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_command_from_non_ascii() {
         let com = "USER ö\r\n";
-        let result = Command::new_from_buffer(com.as_bytes());
+        let result = parse(com.as_bytes());
         assert_eq!(result.is_err(), true);
     }
 }
