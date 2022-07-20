@@ -1,4 +1,6 @@
 mod auth;
+mod command;
+mod config;
 
 use std::{
     io::{Read, Write},
