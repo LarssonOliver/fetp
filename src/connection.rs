@@ -18,12 +18,51 @@ impl Connection {
         write(&mut self.socket, status, message)
     }
 
+    pub fn write_multiline(
+        &mut self,
+        status: u16,
+        message_lines: &[&str],
+    ) -> std::io::Result<Vec<usize>> {
+        write_multiline(&mut self.socket, status, message_lines)
+    }
+
     pub fn read(&mut self) -> std::io::Result<Vec<u8>> {
         read(&mut self.socket)
     }
 }
 
 fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> {
+    let message_array = [msg];
+    let result = write_multiline(out, status, message_array.as_slice())?;
+    Ok(result[0])
+}
+
+fn write_multiline(out: &mut dyn Write, status: u16, msg: &[&str]) -> std::io::Result<Vec<usize>> {
+    for line in msg {
+        validate_outgoing_message(line)?;
+    }
+
+    let mut result: Vec<usize> = Vec::new();
+
+    for (idx, line) in msg.iter().enumerate() {
+        let out_str = if idx == msg.len() - 1 {
+            format!("{} {}\r\n", status, line)
+        } else {
+            format!("{}-{}\r\n", status, line)
+        };
+        result.push(out.write(out_str.as_bytes())?);
+    }
+
+    Ok(result)
+}
+
+fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
+    let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
+    let count = in_.read(&mut buffer)?;
+    Ok(buffer[0..count].to_vec())
+}
+
+fn validate_outgoing_message(msg: &str) -> std::io::Result<()> {
     if msg.contains("\r") || msg.contains("\n") {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -31,14 +70,7 @@ fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> 
         ));
     }
 
-    let out_str = format!("{} {}\r\n", status, msg);
-    out.write(out_str.as_bytes())
-}
-
-fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
-    let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
-    let count = in_.read(&mut buffer)?;
-    Ok(buffer[0..count].to_vec())
+    Ok(())
 }
 
 #[cfg(test)]
@@ -74,9 +106,34 @@ mod tests {
     }
 
     #[test]
+    fn write_mutliline_correct() {
+        let mut out = MockStream::new();
+        write_multiline(&mut out, 220, &["foo", "bar"]).unwrap();
+        assert_eq!(out.out, b"220-foo\r\n220 bar\r\n");
+    }
+
+    #[test]
+    fn write_multiline_correct_single() {
+        let mut out = MockStream::new();
+        write_multiline(&mut out, 220, &["foo"]).unwrap();
+        assert_eq!(out.out, b"220 foo\r\n");
+    }
+
+    #[test]
+    fn write_mutliline_empty_msg_returns() {
+        let mut out = MockStream::new();
+        let res = write_multiline(&mut out, 220, &[]);
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert_eq!(res.len(), 0);
+    }
+
+    #[test]
     fn write_error_if_message_contains_eol_chars() {
         let mut out = MockStream::new();
-        let res = write(&mut out, 220, "Service ready\r\n");
+        let res = write(&mut out, 220, "Service ready\r");
+        assert!(res.is_err());
+        let res = write(&mut out, 220, "Service ready\n");
         assert!(res.is_err());
     }
 
