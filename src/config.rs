@@ -1,5 +1,7 @@
-// TODO These should be modifiable from command line or environment variables.
+// Default values come from:
+// http://sup.xenya.si/sup/info/Juniper/ScreenOS_5.4.0/DocCD_files/Help/5.4.0/ftp_service.htm
 
+// TODO These should be modifiable from command line or environment variables.
 pub const MAX_LINE_LENGTH: usize = 1024;
 pub const MAX_USERNAME_LENGTH: usize = 32;
 pub const MAX_PASSWORD_LENGTH: usize = 64;
