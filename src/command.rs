@@ -10,7 +10,7 @@ use crate::config;
 
 const VERB_LENGTH: usize = 4;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Command {
     verb: [u8; VERB_LENGTH],
     arg: Vec<u8>,
@@ -19,7 +19,7 @@ pub struct Command {
 // pub fn parse(line: &[u8]) {}
 
 impl Command {
-    fn new_from_buffer(buffer: &[u8]) -> Result<Command, CommandError> {
+    pub fn new_from_buffer(buffer: &[u8]) -> Result<Command, CommandError> {
         validate_incoming_buffer(&buffer)?;
 
         let result = Command {
@@ -38,8 +38,21 @@ fn extract_verb(buffer: &[u8]) -> [u8; VERB_LENGTH] {
 }
 
 fn extract_argument(buffer: &[u8]) -> Vec<u8> {
+    let mut control_char_count = 0;
+    while buffer
+        .get(buffer.len() - control_char_count - 1)
+        .unwrap()
+        .is_ascii_control()
+    {
+        control_char_count += 1;
+    }
+
+    if buffer.len() <= VERB_LENGTH + control_char_count {
+        return Vec::new();
+    }
+
     // + 1 is for the space between the verb and the argument.
-    buffer[VERB_LENGTH + 1..buffer.len() - 2].to_vec()
+    buffer[VERB_LENGTH + 1..buffer.len() - control_char_count].to_vec()
 }
 
 fn validate_incoming_buffer(buffer: &[u8]) -> Result<(), CommandError> {
@@ -50,7 +63,7 @@ fn validate_incoming_buffer(buffer: &[u8]) -> Result<(), CommandError> {
 
 fn validate_incoming_buffer_format(buffer: &[u8]) -> Result<(), CommandError> {
     lazy_static! {
-        static ref MATCHER: Regex = Regex::new(r"^[A-Za-z]{4}( .*)?\r?\n$").unwrap();
+        static ref MATCHER: Regex = Regex::new(r"^[A-Za-z]{4}( .*)?\r?\n?$").unwrap();
     }
 
     let text = utf8_buffer_to_string(buffer)?;
@@ -66,7 +79,7 @@ fn utf8_buffer_to_string(buffer: &[u8]) -> Result<String, CommandError> {
     // if !buffer.is_ascii() {
     //     return Err(CommandError(String::from(
     //         "Command contains non-ASCII characters",
-    //     )))
+    //     )));
     // }
 
     match str::from_utf8(buffer) {
@@ -76,7 +89,7 @@ fn utf8_buffer_to_string(buffer: &[u8]) -> Result<String, CommandError> {
 }
 
 fn validate_incoming_buffer_length(buffer: &[u8]) -> Result<(), CommandError> {
-    if buffer.len() < VERB_LENGTH + 1 {
+    if buffer.len() < VERB_LENGTH {
         return Err(CommandError::default());
     }
 
@@ -109,5 +122,53 @@ mod tests {
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
         assert_eq!(result.arg, "anonymous".as_bytes());
+    }
+
+    #[test]
+    fn test_command_from_valid_without_args() {
+        let com = "USER\r\n";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "".as_bytes());
+        let com = "USER \r\n";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "".as_bytes());
+    }
+
+    #[test]
+    fn test_command_from_valid_without_crlf() {
+        let com = "USER anonymous";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "anonymous".as_bytes());
+        let com = "USER ";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "".as_bytes());
+    }
+
+    #[test]
+    fn test_command_from_valid_without_cr() {
+        let com = "USER anonymous\n";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "anonymous".as_bytes());
+        let com = "USER\n";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_ok(), true);
+        let result = result.unwrap();
+        assert_eq!(result.verb, "USER".as_bytes());
+        assert_eq!(result.arg, "".as_bytes());
     }
 }
