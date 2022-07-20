@@ -1,12 +1,11 @@
 mod errors;
 
-use errors::*;
-
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::str;
 
 use crate::config;
+use errors::*;
 
 const VERB_LENGTH: usize = 4;
 
@@ -16,10 +15,12 @@ pub struct Command {
     arg: Vec<u8>,
 }
 
-// pub fn parse(line: &[u8]) {}
+pub fn parse(line: &[u8]) -> Result<Command, CommandError> {
+    Command::new_from_buffer(&line)
+}
 
 impl Command {
-    pub fn new_from_buffer(buffer: &[u8]) -> Result<Command, CommandError> {
+    fn new_from_buffer(buffer: &[u8]) -> Result<Command, CommandError> {
         validate_incoming_buffer(&buffer)?;
 
         let result = Command {
@@ -76,11 +77,11 @@ fn validate_incoming_buffer_format(buffer: &[u8]) -> Result<(), CommandError> {
 }
 
 fn utf8_buffer_to_string(buffer: &[u8]) -> Result<String, CommandError> {
-    // if !buffer.is_ascii() {
-    //     return Err(CommandError(String::from(
-    //         "Command contains non-ASCII characters",
-    //     )));
-    // }
+    if !buffer.is_ascii() {
+        return Err(CommandError(String::from(
+            "Command contains non-ASCII characters",
+        )));
+    }
 
     match str::from_utf8(buffer) {
         Ok(text) => Ok(text.to_string()),
@@ -170,5 +171,12 @@ mod tests {
         let result = result.unwrap();
         assert_eq!(result.verb, "USER".as_bytes());
         assert_eq!(result.arg, "".as_bytes());
+    }
+
+    #[test]
+    fn test_command_from_non_ascii() {
+        let com = "USER ö\r\n";
+        let result = Command::new_from_buffer(com.as_bytes());
+        assert_eq!(result.is_err(), true);
     }
 }
