@@ -1,6 +1,8 @@
 mod auth;
 mod command;
 mod config;
+mod connection;
+mod session;
 
 use std::{
     io::{Read, Write},
