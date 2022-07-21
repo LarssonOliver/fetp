@@ -2,25 +2,18 @@ mod auth;
 mod command;
 mod config;
 mod connection;
+mod session;
 
 use log::{debug, error, info};
 
 use std::net::{TcpListener, TcpStream};
-
-use crate::connection::Connection;
 
 fn main() {
     init_logger();
 
     info!("Starting FeTP server...");
 
-    listen(|stream| {
-        let mut conn = Connection::new(stream);
-        match conn.write_then_close(421, "Service not implemented, closing connection.") {
-            Ok(len) => info!("Closed connection to peer after writing {} bytes", len),
-            Err(err) => error!("Error writing to stream: {}", err),
-        }
-    });
+    listen(session::new);
 }
 
 fn init_logger() {
