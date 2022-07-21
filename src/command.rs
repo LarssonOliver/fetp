@@ -11,8 +11,8 @@ const VERB_LENGTH: usize = 4;
 
 #[derive(Debug)]
 pub struct Command {
-    verb: [u8; VERB_LENGTH],
-    arg: Vec<u8>,
+    pub verb: [u8; VERB_LENGTH],
+    pub arg: Vec<u8>,
 }
 
 pub fn parse(line: &[u8]) -> Result<Command, CommandError> {
