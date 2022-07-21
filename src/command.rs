@@ -1,5 +1,5 @@
-mod errors;
-mod verb;
+pub mod errors;
+pub mod verb;
 
 use lazy_static::lazy_static;
 use log::info;
@@ -7,7 +7,7 @@ use regex::Regex;
 use std::str::{self, FromStr};
 
 use crate::config;
-use errors::*;
+use errors::CommandError;
 
 use self::verb::Verb;
 

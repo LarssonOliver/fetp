@@ -8,7 +8,7 @@ use log::info;
 use crate::config;
 
 pub struct Connection {
-    socket: TcpStream,
+    pub(crate) socket: TcpStream,
 }
 
 impl Connection {
