@@ -26,6 +26,7 @@ impl Connection {
         write_multiline(&mut self.socket, status, message_lines)
     }
 
+    // TODO: Handle TELNET obligations.
     pub fn read(&mut self) -> std::io::Result<Vec<u8>> {
         read(&mut self.socket)
     }
