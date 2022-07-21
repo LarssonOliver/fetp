@@ -2,6 +2,7 @@ mod errors;
 mod verb;
 
 use lazy_static::lazy_static;
+use log::info;
 use regex::Regex;
 use std::str::{self, FromStr};
 
@@ -30,6 +31,8 @@ impl Command {
             verb: extract_verb(&buffer)?,
             arg: extract_argument(&buffer),
         };
+
+        info!("Parsed command: {:?} {:?}", result.verb, result.arg);
 
         Ok(result)
     }

@@ -2,7 +2,7 @@ use std::net::TcpStream;
 
 use log::{error, info};
 
-use crate::connection::Connection;
+use crate::{command::Command, connection::Connection};
 
 struct Session {
     connection: Connection,
@@ -28,4 +28,6 @@ impl Session {
             Err(err) => error!("Error writing to stream: {}", err),
         }
     }
+
+    fn execute(&mut self, command: Command) {}
 }

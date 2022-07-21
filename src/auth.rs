@@ -1,9 +1,13 @@
+use log::info;
+
 // TODO Expand this to allow for user authentication.
 pub fn validate(username: &str, _password: &str) -> bool {
     if username == "anonymous" {
+        info!("Login succeeded for user {}", username);
         return true;
     }
 
+    info!("Login failed for user {}", username);
     return false;
 }
 

@@ -3,6 +3,8 @@ use std::{
     net::TcpStream,
 };
 
+use log::info;
+
 use crate::config;
 
 pub struct Connection {
@@ -15,6 +17,7 @@ impl Connection {
     }
 
     pub fn write(&mut self, status: u16, message: &str) -> std::io::Result<usize> {
+        log::debug!("Writing response: {} {}", status, message);
         write(&mut self.socket, status, message)
     }
 
@@ -23,6 +26,7 @@ impl Connection {
         status: u16,
         message_lines: &[&str],
     ) -> std::io::Result<Vec<usize>> {
+        log::debug!("Writing multiline response: {} {:?}", status, message_lines);
         write_multiline(&mut self.socket, status, message_lines)
     }
 
@@ -32,6 +36,7 @@ impl Connection {
     }
 
     pub fn close(&mut self) -> std::io::Result<()> {
+        info!("Closing connection");
         self.socket.shutdown(std::net::Shutdown::Both)
     }
 
