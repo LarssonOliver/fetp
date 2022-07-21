@@ -30,6 +30,16 @@ impl Connection {
     pub fn read(&mut self) -> std::io::Result<Vec<u8>> {
         read(&mut self.socket)
     }
+
+    pub fn close(&mut self) -> std::io::Result<()> {
+        self.socket.shutdown(std::net::Shutdown::Both)
+    }
+
+    pub fn write_then_close(&mut self, status: u16, message: &str) -> std::io::Result<usize> {
+        let written = self.write(status, message)?;
+        self.close()?;
+        Ok(written)
+    }
 }
 
 fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> {

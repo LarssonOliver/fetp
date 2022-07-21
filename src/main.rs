@@ -5,34 +5,35 @@ mod connection;
 
 use log::{debug, error, info};
 
-use std::{
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-};
+use std::net::{TcpListener, TcpStream};
 
 use crate::connection::Connection;
-
-fn handle_client(mut stream: TcpStream) {
-    let string = "220 Service ready\r\n";
-    stream.write(string.as_bytes()).unwrap();
-    let mut buffer = String::new();
-    let size = stream.read_to_string(&mut buffer).unwrap();
-    info!("{} {:#?}", size, buffer);
-}
 
 fn main() {
     init_logger();
 
     info!("Starting FeTP server...");
-    let listener = match TcpListener::bind(listen_address()) {
-        Ok(listener) => listener,
-        Err(e) => {
-            error!("Failed to bind to address {}: {}", listen_address(), e);
-            std::process::exit(1);
-        }
-    };
 
-    info!("Listening on {}", listener.local_addr().unwrap());
+    listen(|stream| {
+        let mut conn = Connection::new(stream);
+        match conn.write_then_close(421, "Service not implemented, closing connection.") {
+            Ok(len) => info!("Closed connection to peer after writing {} bytes", len),
+            Err(err) => error!("Error writing to stream: {}", err),
+        }
+    });
+}
+
+fn init_logger() {
+    let env = env_logger::Env::default().filter_or("FETP_LOG_LEVEL", "info");
+    env_logger::init_from_env(env);
+    debug!("Logger initialized");
+}
+
+fn listen(handler: fn(TcpStream)) {
+    let listener = create_tcp_listener();
+
+    info!("Ready to accept connections");
+
     for stream in listener.incoming() {
         let stream = match stream {
             Ok(stream) => {
@@ -45,31 +46,27 @@ fn main() {
             }
         };
 
-        let mut connection = Connection::new(stream);
-
-        connection
-            .write_multiline(
-                220,
-                &[
-                    "Welcome to FeTP!",
-                    "",
-                    "Please login using anonymous authentication.",
-                ],
-            )
-            .expect("err");
-
-        let buf = connection.read().unwrap();
-        let cmd = command::parse(&buf).unwrap();
-        info!("{:?} {:?}", cmd.verb, cmd.arg);
+        handler(stream);
     }
 }
 
-fn init_logger() {
-    let env = env_logger::Env::default().filter_or("FETP_LOG_LEVEL", "info");
-    env_logger::init_from_env(env);
-    debug!("Logger initialized");
+fn create_tcp_listener() -> TcpListener {
+    let listener = match TcpListener::bind(listen_address_formatted()) {
+        Ok(listener) => listener,
+        Err(e) => {
+            error!(
+                "Failed to bind to address {}: {}",
+                listen_address_formatted(),
+                e
+            );
+            std::process::exit(1);
+        }
+    };
+
+    info!("Listening on {}", listener.local_addr().unwrap());
+    return listener;
 }
 
-fn listen_address() -> String {
+fn listen_address_formatted() -> String {
     format!("{}:{}", config::LISTEN_ADDR, config::LISTEN_PORT)
 }
