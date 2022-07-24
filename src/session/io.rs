@@ -64,6 +64,7 @@ mod tests {
     impl Write for MockStream {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             self.out.extend_from_slice(buf);
+            self.flush()?;
             Ok(buf.len())
         }
 

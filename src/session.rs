@@ -12,7 +12,7 @@ struct Session {
     is_authenticated: bool,
 }
 
-pub fn handleNewSession(socket: TcpStream) {
+pub fn handle_new_connection(socket: TcpStream) {
     let mut session = Session::new(socket);
     session.run();
 }

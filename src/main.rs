@@ -12,7 +12,7 @@ fn main() {
 
     info!("Starting FeTP server...");
 
-    listen(session::handleNewSession);
+    listen(session::handle_new_connection);
 }
 
 fn init_logger() {

@@ -91,10 +91,7 @@ fn utf8_buffer_to_string(buffer: &[u8]) -> Result<String, CommandError> {
         )));
     }
 
-    match str::from_utf8(buffer) {
-        Ok(text) => Ok(text.to_string()),
-        Err(_) => Err(CommandError::default()),
-    }
+    Ok(str::from_utf8(buffer).unwrap().to_string())
 }
 
 fn validate_incoming_buffer_length(buffer: &[u8]) -> Result<(), CommandError> {
@@ -186,5 +183,30 @@ mod tests {
         let com = "USER ö\r\n";
         let result = parse(com.as_bytes());
         assert_eq!(result.is_err(), true);
+    }
+
+    #[test]
+    fn test_invalid_verb() {
+        let com = b"XYZZ\r\n";
+        let result = parse(com);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_format() {
+        let com = b"foobar";
+        let result = parse(com);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_length() {
+        let start = b"USER ";
+        let mut com = [0; config::MAX_LINE_LENGTH + 1];
+
+        com[..start.len()].copy_from_slice(start);
+
+        let result = parse(com.as_ref());
+        assert!(result.is_err());
     }
 }
