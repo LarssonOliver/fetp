@@ -8,6 +8,7 @@ pub(super) type Executor =
 pub struct ExecutionResult {
     status: Status,
     message: String,
+    new_state: Option<SessionState>,
 }
 
 pub(super) fn user_command_executor(

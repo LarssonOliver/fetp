@@ -1,6 +1,6 @@
-pub mod errors;
-pub mod executor;
-pub mod verb;
+pub(crate) mod errors;
+mod executor;
+pub(crate) mod verb;
 
 use lazy_static::lazy_static;
 use log::info;
@@ -15,12 +15,12 @@ use self::verb::Verb;
 const VERB_LENGTH: usize = 4;
 
 #[derive(Debug)]
-pub struct Command {
+pub(crate) struct Command {
     pub verb: Verb,
     pub arg: String,
 }
 
-pub fn parse(line: &[u8]) -> Result<Command, CommandError> {
+pub(crate) fn parse(line: &[u8]) -> Result<Command, CommandError> {
     Command::new_from_buffer(&line)
 }
 
@@ -38,7 +38,7 @@ impl Command {
         Ok(result)
     }
 
-    fn execute(
+    pub(crate) fn execute(
         &self,
         current_state: SessionState,
     ) -> Result<executor::ExecutionResult, errors::CommandExecutionError> {

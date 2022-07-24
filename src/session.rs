@@ -1,22 +1,29 @@
 mod io;
 
-use std::{io::Read, net::TcpStream};
+use std::{
+    io::{Read, Write},
+    net::TcpStream,
+};
 
-use log::debug;
+use log::{debug, error, warn};
 
-use crate::command::{self, errors::CommandError, Command};
+use crate::{
+    command::{self, errors::CommandError, Command},
+    session::io::write,
+};
 
 struct Session {
     socket: TcpStream,
     state: SessionState,
 }
 
+#[derive(Clone)]
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
 }
 
-pub fn handle_new_connection(socket: TcpStream) {
+pub(crate) fn handle_new_connection(socket: TcpStream) {
     let mut session = Session::new(socket);
     session.run();
 }
@@ -35,17 +42,52 @@ impl Session {
     fn run(&mut self) {
         debug!("New session started");
 
-        loop {
-            let command = read_next_command(&mut self.socket);
+        if greet_new_connection(&mut self.socket).is_err() {
+            error!("Failed to greet new connection, terminating session");
+            return;
         }
 
-        // match self
-        //     .connection
-        //     .write_then_close(421, "Service not implemented, closing connection.")
-        // {
-        //     Ok(len) => info!("Closed connection to peer after writing {} bytes", len),
-        //     Err(err) => error!("Error writing to stream: {}", err),
-        // }
+        loop {
+            let command = read_next_command(&mut self.socket);
+
+            if command.is_err() {
+                let error = command.as_ref().unwrap_err();
+                warn!("Error reading command: {}", error.to_string());
+                let written = write(&mut self.socket, 500, &error.to_string());
+                if written.is_err() {
+                    error!("Unable to write to socket, terminating session");
+                    break;
+                }
+            }
+
+            let command = command.unwrap();
+
+            let execution_result = command.execute(self.state.clone());
+            if execution_result.is_ok() {
+                debug!("Command executed successfully");
+            } else {
+                debug!("Command execution failed");
+            }
+        }
+
+        self.end_session();
+        debug!("Session ended");
+    }
+
+    fn end_session(&mut self) {
+        if let Err(error) = self.socket.shutdown(std::net::Shutdown::Both) {
+            error!("Unable to shutdown socket: {}", error);
+        };
+    }
+}
+
+fn greet_new_connection(stream: &mut impl Write) -> Result<(), ()> {
+    match write(stream, 220, "Welcome to the FeTP FTP server.") {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            error!("Unable to write to socket: {}", error);
+            Err(())
+        }
     }
 }
 
@@ -83,6 +125,31 @@ mod tests {
         fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
             Err(std::io::Error::new(std::io::ErrorKind::Other, "Fake error"))
         }
+    }
+
+    #[derive(Default)]
+    struct MockStream {
+        out: Vec<u8>,
+    }
+
+    impl Write for MockStream {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.out.extend_from_slice(buf);
+            self.flush()?;
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_write_greeting() {
+        let mut stream = MockStream::default();
+        let result = greet_new_connection(&mut stream);
+        assert!(result.is_ok());
+        assert_eq!(stream.out, b"220 Welcome to the FeTP FTP server.\r\n");
     }
 
     #[test]
