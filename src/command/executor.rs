@@ -31,3 +31,8 @@ pub(super) fn acct_command_executor(
 ) -> Result<ExecutionResult, CommandExecutionError> {
     unimplemented!()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}
