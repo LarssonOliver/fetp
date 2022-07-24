@@ -2,9 +2,10 @@ use std::str::FromStr;
 
 use log::warn;
 
-use super::executor::{
-    acct_command_executor, pass_command_executor, user_command_executor, Executor,
-};
+use super::executor::acct::acct_command_executor;
+use super::executor::pass::pass_command_executor;
+use super::executor::user::user_command_executor;
+use super::executor::Executor;
 
 /// Available FTP commands.
 #[derive(Debug, PartialEq)]
