@@ -1,51 +1,6 @@
-use std::{
-    io::{Read, Write},
-    net::TcpStream,
-};
-
-use log::info;
+use std::io::{Read, Write};
 
 use crate::config;
-
-pub struct Connection {
-    pub(crate) socket: TcpStream,
-}
-
-impl Connection {
-    pub fn new(socket: TcpStream) -> Connection {
-        Connection { socket }
-    }
-
-    pub fn write(&mut self, status: u16, message: &str) -> std::io::Result<usize> {
-        log::debug!("Writing response: {} {}", status, message);
-        write(&mut self.socket, status, message)
-    }
-
-    pub fn write_multiline(
-        &mut self,
-        status: u16,
-        message_lines: &[&str],
-    ) -> std::io::Result<Vec<usize>> {
-        log::debug!("Writing multiline response: {} {:?}", status, message_lines);
-        write_multiline(&mut self.socket, status, message_lines)
-    }
-
-    // TODO: Handle TELNET obligations.
-    pub fn read(&mut self) -> std::io::Result<Vec<u8>> {
-        read(&mut self.socket)
-    }
-
-    pub fn close(&mut self) -> std::io::Result<()> {
-        info!("Closing connection");
-        self.socket.shutdown(std::net::Shutdown::Both)
-    }
-
-    pub fn write_then_close(&mut self, status: u16, message: &str) -> std::io::Result<usize> {
-        let written = self.write(status, message)?;
-        self.close()?;
-        Ok(written)
-    }
-}
 
 fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> {
     let message_array = [msg];
@@ -54,6 +9,8 @@ fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> 
 }
 
 fn write_multiline(out: &mut dyn Write, status: u16, msg: &[&str]) -> std::io::Result<Vec<usize>> {
+    log::debug!("Writing response: {} {:?}", status, msg);
+
     for line in msg {
         validate_outgoing_message(line)?;
     }
@@ -72,6 +29,7 @@ fn write_multiline(out: &mut dyn Write, status: u16, msg: &[&str]) -> std::io::R
     Ok(result)
 }
 
+// TODO: Handle TELNET obligations.
 fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
     let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
     let count = in_.read(&mut buffer)?;

@@ -1,7 +1,6 @@
 mod auth;
 mod command;
 mod config;
-mod connection;
 mod session;
 
 use log::{debug, error, info};
@@ -13,7 +12,7 @@ fn main() {
 
     info!("Starting FeTP server...");
 
-    listen(session::new);
+    listen(session::handleNewSession);
 }
 
 fn init_logger() {
