@@ -1,4 +1,5 @@
 pub mod errors;
+pub mod executor;
 pub mod verb;
 
 use lazy_static::lazy_static;
@@ -6,7 +7,7 @@ use log::info;
 use regex::Regex;
 use std::str::{self, FromStr};
 
-use crate::config;
+use crate::{config, session::SessionState};
 use errors::CommandError;
 
 use self::verb::Verb;
@@ -16,7 +17,7 @@ const VERB_LENGTH: usize = 4;
 #[derive(Debug)]
 pub struct Command {
     pub verb: Verb,
-    pub arg: Vec<u8>,
+    pub arg: String,
 }
 
 pub fn parse(line: &[u8]) -> Result<Command, CommandError> {
@@ -36,12 +37,19 @@ impl Command {
 
         Ok(result)
     }
+
+    fn execute(
+        &self,
+        current_state: SessionState,
+    ) -> Result<executor::ExecutionResult, errors::CommandExecutionError> {
+        let executor = self.verb.executor();
+        executor(current_state, self.arg.as_str())
+    }
 }
 
 fn validate_incoming_buffer(buffer: &[u8]) -> Result<(), CommandError> {
     validate_incoming_buffer_length(&buffer)?;
-    validate_incoming_buffer_format(&buffer)?;
-    Ok(())
+    validate_incoming_buffer_format(&buffer)
 }
 
 fn validate_incoming_buffer_length(buffer: &[u8]) -> Result<(), CommandError> {
@@ -91,7 +99,7 @@ fn extract_verb(buffer: &[u8]) -> Result<Verb, CommandError> {
     }
 }
 
-fn extract_argument(buffer: &[u8]) -> Vec<u8> {
+fn extract_argument(buffer: &[u8]) -> String {
     let mut control_char_count = 0;
     while buffer
         .get(buffer.len() - control_char_count - 1)
@@ -102,11 +110,13 @@ fn extract_argument(buffer: &[u8]) -> Vec<u8> {
     }
 
     if buffer.len() <= VERB_LENGTH + control_char_count {
-        return Vec::new();
+        return String::new();
     }
 
     // + 1 is for the space between the verb and the argument.
-    buffer[VERB_LENGTH + 1..buffer.len() - control_char_count].to_vec()
+    let vec = buffer[VERB_LENGTH + 1..buffer.len() - control_char_count].to_vec();
+
+    String::from_utf8(vec).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -127,7 +137,7 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "anonymous".as_bytes());
+        assert_eq!(result.arg, "anonymous");
     }
 
     #[test]
@@ -137,13 +147,13 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "".as_bytes());
+        assert_eq!(result.arg, "");
         let com = "USER \r\n";
         let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "".as_bytes());
+        assert_eq!(result.arg, "");
     }
 
     #[test]
@@ -153,13 +163,13 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "anonymous".as_bytes());
+        assert_eq!(result.arg, "anonymous");
         let com = "USER ";
         let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "".as_bytes());
+        assert_eq!(result.arg, "");
     }
 
     #[test]
@@ -169,13 +179,13 @@ mod tests {
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "anonymous".as_bytes());
+        assert_eq!(result.arg, "anonymous");
         let com = "USER\n";
         let result = parse(com.as_bytes());
         assert_eq!(result.is_ok(), true);
         let result = result.unwrap();
         assert_eq!(result.verb, Verb::USER);
-        assert_eq!(result.arg, "".as_bytes());
+        assert_eq!(result.arg, "");
     }
 
     #[test]

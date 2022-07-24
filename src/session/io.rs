@@ -1,14 +1,18 @@
 use std::io::{Read, Write};
 
-use crate::config;
+use crate::{config, status::Status};
 
-fn write(out: &mut dyn Write, status: u16, msg: &str) -> std::io::Result<usize> {
+pub fn write(out: &mut dyn Write, status: Status, msg: &str) -> std::io::Result<usize> {
     let message_array = [msg];
     let result = write_multiline(out, status, message_array.as_slice())?;
     Ok(result[0])
 }
 
-fn write_multiline(out: &mut dyn Write, status: u16, msg: &[&str]) -> std::io::Result<Vec<usize>> {
+pub fn write_multiline(
+    out: &mut dyn Write,
+    status: Status,
+    msg: &[&str],
+) -> std::io::Result<Vec<usize>> {
     log::debug!("Writing response: {} {:?}", status, msg);
 
     for line in msg {
@@ -29,13 +33,6 @@ fn write_multiline(out: &mut dyn Write, status: u16, msg: &[&str]) -> std::io::R
     Ok(result)
 }
 
-// TODO: Handle TELNET obligations.
-fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
-    let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
-    let count = in_.read(&mut buffer)?;
-    Ok(buffer[0..count].to_vec())
-}
-
 fn validate_outgoing_message(msg: &str) -> std::io::Result<()> {
     if msg.contains("\r") || msg.contains("\n") {
         return Err(std::io::Error::new(
@@ -45,6 +42,13 @@ fn validate_outgoing_message(msg: &str) -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+// TODO: Handle TELNET obligations.
+pub fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
+    let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
+    let count = in_.read(&mut buffer)?;
+    Ok(buffer[0..count].to_vec())
 }
 
 #[cfg(test)]

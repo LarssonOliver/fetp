@@ -2,6 +2,7 @@ mod auth;
 mod command;
 mod config;
 mod session;
+mod status;
 
 use log::{debug, error, info};
 

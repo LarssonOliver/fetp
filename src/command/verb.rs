@@ -2,6 +2,10 @@ use std::str::FromStr;
 
 use log::warn;
 
+use super::executor::{
+    acct_command_executor, pass_command_executor, user_command_executor, Executor,
+};
+
 /// Available FTP commands.
 #[derive(Debug, PartialEq)]
 pub enum Verb {
@@ -23,6 +27,16 @@ impl FromStr for Verb {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
             }
+        }
+    }
+}
+
+impl Verb {
+    pub(super) fn executor(&self) -> Executor {
+        match self {
+            Verb::USER => user_command_executor,
+            Verb::PASS => pass_command_executor,
+            Verb::ACCT => acct_command_executor,
         }
     }
 }
@@ -60,5 +74,21 @@ mod tests {
     fn test_fail_on_empty() {
         let empty = "";
         assert!(Verb::from_str(empty).is_err());
+    }
+
+    #[test]
+    fn test_executor_mapping() {
+        assert_eq!(
+            Verb::USER.executor() as usize,
+            user_command_executor as usize
+        );
+        assert_eq!(
+            Verb::PASS.executor() as usize,
+            pass_command_executor as usize
+        );
+        assert_eq!(
+            Verb::ACCT.executor() as usize,
+            acct_command_executor as usize
+        );
     }
 }
