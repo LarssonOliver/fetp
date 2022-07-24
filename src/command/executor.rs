@@ -7,9 +7,9 @@ pub(super) type Executor =
 
 #[derive(Default)]
 pub(crate) struct ExecutionResult {
-    status: Status,
-    message: String,
-    new_state: Option<SessionState>,
+    pub(crate) status: Status,
+    pub(crate) message: String,
+    pub(crate) new_state: Option<SessionState>,
 }
 
 pub(super) fn user_command_executor(
@@ -33,14 +33,23 @@ pub(super) fn user_command_executor(
         }
     }
 
-    if result.status == 331 || result.status == 332 {
-        let mut new_state = state;
-        new_state.user = Some(argument.to_string());
-        new_state.is_authenticated = false;
-        result.new_state = Some(new_state);
-    }
-
+    result.new_state = user_update_state(state, result.status, argument);
     Ok(result)
+}
+
+fn user_update_state(
+    current_state: SessionState,
+    status: Status,
+    username: &str,
+) -> Option<SessionState> {
+    if status == 331 || status == 332 {
+        let mut new_state = current_state;
+        new_state.user = Some(username.to_string());
+        new_state.is_authenticated = false;
+        Some(new_state)
+    } else {
+        None
+    }
 }
 
 pub(super) fn pass_command_executor(

@@ -219,4 +219,19 @@ mod tests {
         let result = parse(com.as_ref());
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_execute_executor() {
+        let com = b"USER foo\t\n";
+        let result = parse(com).unwrap();
+        let state = SessionState::default();
+        let result = result.execute(state);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert_eq!(result.status, 331);
+        assert!(result.new_state.is_some());
+        let new_state = result.new_state.unwrap();
+        assert_eq!(new_state.user, Some("foo".to_string()));
+        assert_eq!(new_state.is_authenticated, false);
+    }
 }
