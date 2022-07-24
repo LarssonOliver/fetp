@@ -17,7 +17,7 @@ struct Session {
     state: SessionState,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
