@@ -10,6 +10,7 @@ use log::{debug, error, warn};
 use crate::{
     command::{self, errors::CommandError, verb::Verb, Command},
     session::io::write,
+    status::Status,
 };
 
 struct Session {
@@ -52,27 +53,24 @@ impl Session {
         self.session_loop();
 
         self.end_session();
-
         debug!("Session ended");
     }
 
     fn session_loop(&mut self) {
         loop {
-            let command = read_next_command(&mut self.socket);
-
-            if command.is_err() {
-                let error = command.as_ref().unwrap_err();
-                warn!("Error reading command: {}", error.to_string());
-                let written = write(&mut self.socket, 500, &error.to_string());
-                if written.is_err() {
-                    error!("Unable to write to socket, terminating session");
-                    break;
+            let command = match await_command(&mut self.socket) {
+                Ok(command) => command,
+                Err((status, message)) => {
+                    let res = write(&mut self.socket, status, message.as_str());
+                    if res.is_err() {
+                        error!("Failed to write response to client");
+                        return;
+                    }
+                    continue;
                 }
-            }
+            };
 
-            let command = command.unwrap();
-
-            let result = execute_command(&command, &self.state);
+            let result = handle_command(&command, &&self.state, &mut self.socket);
             self.state = result;
         }
     }
@@ -94,7 +92,25 @@ fn greet_new_connection(stream: &mut impl Write) -> Result<(), ()> {
     }
 }
 
-fn read_next_command(stream: &mut impl Read) -> Result<Command, CommandError> {
+fn await_command(stream: &mut impl Read) -> Result<Command, (Status, String)> {
+    let command = parse_next_command(stream);
+
+    match command {
+        Ok(command) => Ok(command),
+        Err(error) => {
+            warn!("Error reading command: {}", error.to_string());
+            return Err((500, error.to_string()));
+            // let written = write(&mut self.socket, 500, &error.to_string());
+
+            // if written.is_err() {
+            //     error!("Unable to write to socket, terminating session");
+            //     break;
+            // }
+        }
+    }
+}
+
+fn parse_next_command(stream: &mut impl Read) -> Result<Command, CommandError> {
     let buffer = match io::read(stream) {
         Ok(buffer) => buffer,
         Err(err) => return Err(CommandError(err.to_string())),
@@ -117,9 +133,11 @@ fn trim_if_multiple_commands(buffer: &[u8]) -> &[u8] {
     }
 }
 
-fn execute_command(command: &Command, state: &SessionState) -> SessionState {
+// TODO handle errors
+fn handle_command(command: &Command, state: &SessionState, out: &mut dyn Write) -> SessionState {
     let verb = command.verb.clone();
     let result = command.execute(state.clone()).unwrap();
+    write(out, result.status, &result.message).unwrap();
     let mut new_state = result.new_state.unwrap();
     new_state.previous_command = Some(verb);
     new_state
@@ -166,7 +184,7 @@ mod tests {
     #[test]
     fn test_read_next_command_correct() {
         let mut input = "USER foo\r\n".as_bytes();
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_ok());
         let command = command.unwrap();
         assert_eq!(command.verb, Verb::USER);
@@ -176,47 +194,50 @@ mod tests {
     #[test]
     fn test_read_next_command_incorrect() {
         let mut input = "USER-foo\r\n".as_bytes();
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_err());
     }
 
     #[test]
     fn test_read_more_than_one_command() {
         let mut input = "USER foo\r\nUSER bar\r\n".as_bytes();
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_ok());
         let command = command.unwrap();
         assert_eq!(command.verb, Verb::USER);
         assert_eq!(command.arg, "foo");
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_err());
     }
 
     #[test]
     fn test_read_empty_command() {
         let mut input = "".as_bytes();
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_err());
     }
 
     #[test]
     fn test_read_io_error() {
         let mut input = ErrorStream {};
-        let command = read_next_command(&mut input);
+        let command = parse_next_command(&mut input);
         assert!(command.is_err());
     }
 
     #[test]
-    fn test_execute_command_with_state() {
+    fn test_handle_command() {
         let verb = Verb::USER;
         let command = Command {
             verb: Verb::USER,
             arg: "foo".to_string(),
         };
         let state = SessionState::default();
-        let new_state = execute_command(&command, &state);
+        let mut stream = MockStream::default();
+        let new_state = handle_command(&command, &state, &mut stream);
+
         assert_eq!(new_state.user, Some("foo".to_string()));
         assert_eq!(new_state.is_authenticated, false);
         assert_eq!(new_state.previous_command, Some(verb));
+        assert!(stream.out.starts_with(b"331 "));
     }
 }
