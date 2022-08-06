@@ -4,10 +4,10 @@ pub(super) mod user;
 
 use crate::{session::SessionState, status::Status};
 
-use super::errors::CommandExecutionError;
+use super::errors::ExecutionError;
 
 pub(super) type Executor =
-    fn(state: SessionState, argument: &str) -> Result<ExecutionResult, CommandExecutionError>;
+    fn(state: SessionState, argument: &str) -> Result<ExecutionResult, ExecutionError>;
 
 #[derive(Default)]
 pub(crate) struct ExecutionResult {

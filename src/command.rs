@@ -41,7 +41,7 @@ impl Command {
     pub(crate) fn execute(
         &self,
         current_state: SessionState,
-    ) -> Result<executor::ExecutionResult, errors::CommandExecutionError> {
+    ) -> Result<executor::ExecutionResult, errors::ExecutionError> {
         let executor = self.verb.executor();
         executor(current_state, self.arg.as_str())
     }

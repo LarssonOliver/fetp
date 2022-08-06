@@ -1,11 +1,11 @@
-use crate::{auth, command::errors::CommandExecutionError, session::SessionState, status::Status};
+use crate::{auth, command::errors::ExecutionError, session::SessionState};
 
 use super::ExecutionResult;
 
 pub(crate) fn pass_command_executor(
     state: SessionState,
     argument: &str,
-) -> Result<ExecutionResult, CommandExecutionError> {
+) -> Result<ExecutionResult, ExecutionError> {
     pass_command_executor_with_validator(state, argument, auth::validate)
 }
 
@@ -13,7 +13,7 @@ fn pass_command_executor_with_validator(
     state: SessionState,
     argument: &str,
     validator: fn(&str, &str) -> bool,
-) -> Result<ExecutionResult, CommandExecutionError> {
+) -> Result<ExecutionResult, ExecutionError> {
     let mut result = ExecutionResult::default();
 
     if is_anonymous_user(&state) {

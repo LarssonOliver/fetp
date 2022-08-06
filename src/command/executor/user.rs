@@ -1,11 +1,11 @@
-use crate::{command::errors::CommandExecutionError, session::SessionState, status::Status};
+use crate::{command::errors::ExecutionError, session::SessionState, status::Status};
 
 use super::ExecutionResult;
 
 pub(crate) fn user_command_executor(
     state: SessionState,
     argument: &str,
-) -> Result<ExecutionResult, CommandExecutionError> {
+) -> Result<ExecutionResult, ExecutionError> {
     let mut result = ExecutionResult::default();
 
     match argument {
