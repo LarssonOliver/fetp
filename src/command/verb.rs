@@ -8,7 +8,7 @@ use super::executor::user::user_command_executor;
 use super::executor::Executor;
 
 /// Available FTP commands.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Verb {
     USER,
     PASS,

@@ -1,4 +1,8 @@
-use crate::{auth, command::errors::ExecutionError, session::SessionState};
+use crate::{
+    auth,
+    command::{errors::ExecutionError, verb::Verb},
+    session::SessionState,
+};
 
 use super::ExecutionResult;
 
@@ -16,7 +20,10 @@ fn pass_command_executor_with_validator(
 ) -> Result<ExecutionResult, ExecutionError> {
     let mut result = ExecutionResult::default();
 
-    if is_anonymous_user(&state) {
+    if state.previous_command != Some(Verb::USER) {
+        result.status = 503;
+        result.message.push_str("Previous command must be USER.")
+    } else if is_anonymous_user(&state) {
         result.status = 202;
         result.message.push_str("Already logged in as anonymous.");
     } else if state.user.is_none() {
@@ -46,6 +53,8 @@ fn is_anonymous_user(state: &SessionState) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::command::verb::Verb;
+
     use super::*;
 
     #[test]
@@ -53,6 +62,7 @@ mod tests {
         let validator = |u: &str, p: &str| u == "foo" && p == "bar";
         let mut state = SessionState::default();
         state.user = Some("foo".to_string());
+        state.previous_command = Some(Verb::USER);
         let argument = "bar";
         let result = pass_command_executor_with_validator(state, argument, validator);
         assert!(result.is_ok());
@@ -69,6 +79,7 @@ mod tests {
     fn pass_no_argument_returns_501() {
         let mut state = SessionState::default();
         state.user = Some("foo".to_string());
+        state.previous_command = Some(Verb::USER);
         let argument = "";
         let result = pass_command_executor(state, argument);
         assert!(result.is_ok());
@@ -82,6 +93,7 @@ mod tests {
     fn pass_anonymous_202() {
         let mut state = SessionState::default();
         state.user = Some("anonymous".to_string());
+        state.previous_command = Some(Verb::USER);
         state.is_authenticated = true;
         let argument = "";
         let result = pass_command_executor(state, argument);
@@ -97,6 +109,7 @@ mod tests {
         let validator = |u: &str, p: &str| u == "foo" && p == "bar";
         let mut state = SessionState::default();
         state.user = Some("foo".to_string());
+        state.previous_command = Some(Verb::USER);
         let argument = "baz";
         let result = pass_command_executor_with_validator(state, argument, validator);
         assert!(result.is_ok());
@@ -107,14 +120,17 @@ mod tests {
     }
 
     #[test]
-    fn pass_user_not_called_503() {
-        let state = SessionState::default();
+    fn pass_last_command_must_be_user_503() {
+        let validator = |u: &str, p: &str| u == "foo" && p == "bar";
+        let mut state = SessionState::default();
+        state.user = Some("foo".to_string());
+        state.previous_command = Some(Verb::ACCT);
         let argument = "bar";
-        let result = pass_command_executor(state, argument);
+        let result = pass_command_executor_with_validator(state, argument, validator);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 503);
-        assert_eq!(result.message, "User not specified.");
+        assert_eq!(result.message, "Previous command must be USER.");
         assert!(result.new_state.is_none());
     }
 }

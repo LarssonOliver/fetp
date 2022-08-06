@@ -8,7 +8,7 @@ use std::{
 use log::{debug, error, warn};
 
 use crate::{
-    command::{self, errors::CommandError, Command},
+    command::{self, errors::CommandError, verb::Verb, Command},
     session::io::write,
 };
 
@@ -21,6 +21,7 @@ struct Session {
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
+    pub(crate) previous_command: Option<Verb>,
 }
 
 pub(crate) fn handle_new_connection(socket: TcpStream) {
@@ -35,6 +36,7 @@ impl Session {
             state: SessionState {
                 user: None,
                 is_authenticated: false,
+                previous_command: None,
             },
         }
     }
@@ -62,12 +64,8 @@ impl Session {
 
             let command = command.unwrap();
 
-            let execution_result = command.execute(self.state.clone());
-            if execution_result.is_ok() {
-                debug!("Command executed successfully");
-            } else {
-                debug!("Command execution failed");
-            }
+            let result = execute_command(&command, &self.state);
+            self.state = result;
         }
 
         self.end_session();
@@ -112,6 +110,14 @@ fn trim_if_multiple_commands(buffer: &[u8]) -> &[u8] {
         usize::MAX => buffer,
         _ => &buffer[..last_index_of_first_crlf],
     }
+}
+
+fn execute_command(command: &Command, state: &SessionState) -> SessionState {
+    let verb = command.verb.clone();
+    let result = command.execute(state.clone()).unwrap();
+    let mut new_state = result.new_state.unwrap();
+    new_state.previous_command = Some(verb);
+    new_state
 }
 
 #[cfg(test)]
@@ -193,5 +199,19 @@ mod tests {
         let mut input = ErrorStream {};
         let command = read_next_command(&mut input);
         assert!(command.is_err());
+    }
+
+    #[test]
+    fn test_execute_command_with_state() {
+        let verb = Verb::USER;
+        let command = Command {
+            verb: Verb::USER,
+            arg: "foo".to_string(),
+        };
+        let state = SessionState::default();
+        let new_state = execute_command(&command, &state);
+        assert_eq!(new_state.user, Some("foo".to_string()));
+        assert_eq!(new_state.is_authenticated, false);
+        assert_eq!(new_state.previous_command, Some(verb));
     }
 }
