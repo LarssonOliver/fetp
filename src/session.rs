@@ -49,6 +49,14 @@ impl Session {
             return;
         }
 
+        self.session_loop();
+
+        self.end_session();
+
+        debug!("Session ended");
+    }
+
+    fn session_loop(&mut self) {
         loop {
             let command = read_next_command(&mut self.socket);
 
@@ -67,9 +75,6 @@ impl Session {
             let result = execute_command(&command, &self.state);
             self.state = result;
         }
-
-        self.end_session();
-        debug!("Session ended");
     }
 
     fn end_session(&mut self) {
