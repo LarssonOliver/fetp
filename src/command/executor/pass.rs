@@ -26,9 +26,6 @@ fn pass_command_executor_with_validator(
     } else if is_anonymous_user(&state) {
         result.status = 202;
         result.message.push_str("Already logged in as anonymous.");
-    } else if state.user.is_none() {
-        result.status = 503;
-        result.message.push_str("User not specified.");
     } else if let "" = argument {
         result.status = 501;
         result.message.push_str("Password parameter empty.")
