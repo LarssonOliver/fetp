@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::{config, status::Status};
+use crate::status::Status;
 
 pub fn write(out: &mut dyn Write, status: Status, msg: &str) -> std::io::Result<usize> {
     let message_array = [msg];
@@ -45,10 +45,21 @@ fn validate_outgoing_message(msg: &str) -> std::io::Result<()> {
 }
 
 // TODO: Handle TELNET obligations.
-pub fn read(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
-    let mut buffer: [u8; config::MAX_LINE_LENGTH] = [0; config::MAX_LINE_LENGTH];
-    let count = in_.read(&mut buffer)?;
-    Ok(buffer[0..count].to_vec())
+pub fn read_line(in_: &mut dyn Read) -> std::io::Result<Vec<u8>> {
+    let mut buf = Vec::new();
+
+    for byte in in_.bytes() {
+        let char = match byte {
+            Ok(char) => char,
+            Err(error) => return Err(error),
+        };
+
+        buf.push(char);
+        if char == b'\n' {
+            break;
+        }
+    }
+    Ok(buf)
 }
 
 #[cfg(test)]
@@ -117,10 +128,17 @@ mod tests {
     }
 
     #[test]
-    fn read_into_vec() {
+    fn read_line_into_vec() {
         let com = "220 Service ready\r\n";
         let mut mock = com.as_bytes();
-        let buff = read(&mut mock).unwrap();
+        let buff = read_line(&mut mock).unwrap();
         assert_eq!(buff, com.as_bytes());
+    }
+
+    #[test]
+    fn read_line_by_line() {
+        let mut mock = "220 Service ready\r\n123 foo\n".as_bytes();
+        assert_eq!(read_line(&mut mock).unwrap(), b"220 Service ready\r\n");
+        assert_eq!(read_line(&mut mock).unwrap(), b"123 foo\n");
     }
 }

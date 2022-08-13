@@ -13,8 +13,12 @@ use crate::{
     status::Status,
 };
 
+use self::io::read_line;
+
 struct Session {
     socket: TcpStream,
+    read_socket: Box<dyn Read>,
+    write_socket: Box<dyn Write>,
     state: SessionState,
 }
 
@@ -23,63 +27,88 @@ pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
     pub(crate) previous_command: Option<Verb>,
+    has_greeted: bool,
+}
+
+#[derive(Debug, PartialEq)]
+enum ShouldExit {
+    No,
+    Yes,
 }
 
 pub(crate) fn handle_new_connection(socket: TcpStream) {
     let mut session = Session::new(socket);
-    session.run();
+    run_session(&mut session, handle_pass);
 }
 
 impl Session {
-    fn new(socket: TcpStream) -> Session {
+    fn new(stream: TcpStream) -> Session {
+        let read_socket = Box::new(stream.try_clone().expect("Failed to clone stream"));
+        let write_socket = Box::new(stream.try_clone().expect("Failed to clone stream"));
         Session {
-            socket,
+            socket: stream,
+            read_socket,
+            write_socket,
             state: SessionState {
                 user: None,
                 is_authenticated: false,
                 previous_command: None,
+                has_greeted: false,
             },
         }
     }
+}
 
-    fn run(&mut self) {
-        debug!("New session started");
-
-        if greet_new_connection(&mut self.socket).is_err() {
-            error!("Failed to greet new connection, terminating session");
-            return;
-        }
-
-        self.session_loop();
-
-        self.end_session();
-        debug!("Session ended");
-    }
-
-    fn session_loop(&mut self) {
-        loop {
-            let command = match await_command(&mut self.socket) {
-                Ok(command) => command,
-                Err((status, message)) => {
-                    let res = write(&mut self.socket, status, message.as_str());
-                    if res.is_err() {
-                        error!("Failed to write response to client");
-                        return;
-                    }
-                    continue;
-                }
-            };
-
-            let ((status, msg), result) = run_command(&command, &&self.state);
-            self.state = result;
+fn run_session(session: &mut Session, pass_handler: impl Fn(&mut Session) -> ShouldExit) {
+    let peer_addr = session.socket.peer_addr().unwrap();
+    debug!("New session started with peer {}", peer_addr);
+    loop {
+        match pass_handler(session) {
+            ShouldExit::No => continue,
+            ShouldExit::Yes => {
+                end_session(&mut session.socket);
+                break;
+            }
         }
     }
+    debug!("Session ended with peer {}", peer_addr);
+}
 
-    fn end_session(&mut self) {
-        if let Err(error) = self.socket.shutdown(std::net::Shutdown::Both) {
-            error!("Unable to shutdown socket: {}", error);
-        };
+fn handle_pass(session: &mut Session) -> ShouldExit {
+    if !session.state.has_greeted {
+        return handle_session_not_greeted(session);
     }
+
+    let command = match await_command(&mut session.read_socket) {
+        Ok(command) => command,
+        Err((status, message)) => {
+            let res = write(&mut session.write_socket, status, message.as_str());
+            if res.is_err() {
+                error!("Failed to write response to client");
+                return ShouldExit::Yes;
+            }
+            return ShouldExit::No;
+        }
+    };
+
+    let ((status, msg), result) = run_command(&command, &session.state);
+    session.state = result;
+
+    if let Err(error) = write(&mut session.write_socket, status, msg.as_str()) {
+        error!("Failed to write response to client: {}", error);
+        return ShouldExit::Yes;
+    }
+
+    ShouldExit::No
+}
+
+fn handle_session_not_greeted(session: &mut Session) -> ShouldExit {
+    if greet_new_connection(&mut session.write_socket).is_err() {
+        return ShouldExit::Yes;
+    }
+
+    session.state.has_greeted = true;
+    ShouldExit::No
 }
 
 fn greet_new_connection(stream: &mut impl Write) -> Result<(), ()> {
@@ -100,36 +129,17 @@ fn await_command(stream: &mut impl Read) -> Result<Command, (Status, String)> {
         Err(error) => {
             warn!("Error reading command: {}", error.to_string());
             return Err((500, error.to_string()));
-            // let written = write(&mut self.socket, 500, &error.to_string());
-
-            // if written.is_err() {
-            //     error!("Unable to write to socket, terminating session");
-            //     break;
-            // }
         }
     }
 }
 
 fn parse_next_command(stream: &mut impl Read) -> Result<Command, CommandError> {
-    let buffer = match io::read(stream) {
-        Ok(buffer) => buffer,
-        Err(err) => return Err(CommandError(err.to_string())),
-    };
-
-    let buffer = trim_if_multiple_commands(&buffer);
-
-    command::parse(buffer)
-}
-
-fn trim_if_multiple_commands(buffer: &[u8]) -> &[u8] {
-    let last_index_of_first_crlf = buffer
-        .iter()
-        .position(|&b| b == b'\r')
-        .unwrap_or(usize::MAX);
-
-    match last_index_of_first_crlf {
-        usize::MAX => buffer,
-        _ => &buffer[..last_index_of_first_crlf],
+    match read_line(stream) {
+        Ok(buffer) => command::parse(&buffer),
+        Err(error) => {
+            warn!("Error reading command: {}", error);
+            Err(CommandError("Error reading command".to_string()))
+        }
     }
 }
 
@@ -138,15 +148,21 @@ fn run_command(
     command: &Command,
     current_state: &SessionState,
 ) -> ((Status, String), SessionState) {
-    let verb = command.verb.clone();
     let result = command.execute(current_state).unwrap();
     let mut new_state = result.new_state.unwrap();
-    new_state.previous_command = Some(verb);
+    new_state.previous_command = Some(command.verb.clone());
     ((result.status, result.message), new_state)
+}
+
+fn end_session(stream: &mut TcpStream) {
+    stream
+        .shutdown(std::net::Shutdown::Both)
+        .expect("Failed to shutdown socket"); // This should never fail on linux
 }
 
 #[cfg(test)]
 mod tests {
+
     use crate::command::verb::Verb;
 
     use super::*;
@@ -175,12 +191,97 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct MockErrorStream {}
+    impl Write for MockErrorStream {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            self.flush()?;
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "Fake error"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn run_session_test() {
+        let test = |session: &mut Session| {
+            match &session.state.user {
+                None => session.state.user = Some("test".to_string()),
+                Some(user) => {
+                    if user == "test" {
+                        session.state.user = Some("test2".to_string());
+                    } else {
+                        assert_eq!(user, "test2");
+                        return ShouldExit::Yes;
+                    }
+                }
+            }
+            ShouldExit::No
+        };
+
+        let stream =
+            TcpStream::connect("tcpbin.com:4242").expect("Unable to connect to tcpbin.com:4242");
+        let mut session = Session::new(stream);
+
+        run_session(&mut session, test);
+
+        assert_eq!(session.state.user, Some("test2".to_string()));
+        assert!(session.write_socket.write(b"buf").is_err());
+    }
+
+    #[test]
+    fn handle_pass_greeting() {
+        let stream =
+            TcpStream::connect("tcpbin.com:4242").expect("Unable to connect to tcpbin.com:4242");
+        let mut session = Session::new(stream);
+        let result = handle_pass(&mut session);
+        assert_eq!(result, ShouldExit::No);
+        assert_eq!(session.state.has_greeted, true);
+    }
+
+    #[test]
+    fn session_not_greeted_error() {
+        let stream =
+            TcpStream::connect("tcpbin.com:4242").expect("Unable to connect to tcpbin.com:4242");
+        let mut session = Session::new(stream);
+        session.write_socket = Box::new(MockErrorStream {});
+        let result = handle_session_not_greeted(&mut session);
+        assert_eq!(result, ShouldExit::Yes);
+    }
+
     #[test]
     fn test_write_greeting() {
         let mut stream = MockStream::default();
         let result = greet_new_connection(&mut stream);
         assert!(result.is_ok());
         assert_eq!(stream.out, b"220 Welcome to the FeTP FTP server.\r\n");
+    }
+
+    #[test]
+    fn write_greeting_error() {
+        let mut stream = MockErrorStream::default();
+        let result = greet_new_connection(&mut stream);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn await_command_correct() {
+        let mut input = "USER foo\r\n".as_bytes();
+        let res = await_command(&mut input);
+        assert!(res.is_ok());
+        let command = res.unwrap();
+        assert_eq!(command.verb, Verb::USER);
+        assert_eq!(command.arg, "foo");
+    }
+
+    #[test]
+    fn await_command_err() {
+        let mut input = "USR-foo\r\n".as_bytes();
+        let res = await_command(&mut input);
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err().0, 500);
     }
 
     #[test]
@@ -195,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_read_next_command_incorrect() {
-        let mut input = "USER-foo\r\n".as_bytes();
+        let mut input = "USR-foo\r\n".as_bytes();
         let command = parse_next_command(&mut input);
         assert!(command.is_err());
     }
@@ -209,7 +310,9 @@ mod tests {
         assert_eq!(command.verb, Verb::USER);
         assert_eq!(command.arg, "foo");
         let command = parse_next_command(&mut input);
-        assert!(command.is_err());
+        let command = command.unwrap();
+        assert_eq!(command.verb, Verb::USER);
+        assert_eq!(command.arg, "bar");
     }
 
     #[test]
@@ -241,5 +344,26 @@ mod tests {
         assert_eq!(new_state.previous_command, Some(verb));
         assert_eq!(status, 331);
         assert!(msg != "");
+    }
+
+    #[test]
+    fn test_end_session() {
+        let mut stream =
+            TcpStream::connect("tcpbin.com:4242").expect("Unable to connect to tcpbin.com:4242");
+        let msg = b"test";
+        assert!(stream.write(msg).is_ok());
+        end_session(&mut stream);
+        assert!(stream.write(msg).is_err());
+    }
+
+    #[test]
+    fn test_end_session_already_closed() {
+        let mut stream =
+            TcpStream::connect("tcpbin.com:4242").expect("Unable to connect to tcpbin.com:4242");
+        let msg = b"test";
+        assert!(stream.write(msg).is_ok());
+        stream.shutdown(std::net::Shutdown::Both).unwrap();
+        end_session(&mut stream);
+        assert!(stream.write(msg).is_err());
     }
 }
