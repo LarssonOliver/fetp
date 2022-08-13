@@ -3,7 +3,7 @@ use crate::{command::errors::ExecutionError, session::SessionState, status::Stat
 use super::ExecutionResult;
 
 pub(crate) fn user_command_executor(
-    state: SessionState,
+    state: &SessionState,
     argument: &str,
 ) -> Result<ExecutionResult, ExecutionError> {
     let mut result = ExecutionResult::default();
@@ -25,17 +25,17 @@ pub(crate) fn user_command_executor(
         }
     }
 
-    result.new_state = user_update_state(state, result.status, argument);
+    result.new_state = user_update_state(&state, result.status, argument);
     Ok(result)
 }
 
 fn user_update_state(
-    current_state: SessionState,
+    current_state: &SessionState,
     status: Status,
     username: &str,
 ) -> Option<SessionState> {
     if status == 230 || status == 331 {
-        let mut new_state = current_state;
+        let mut new_state = current_state.clone();
         new_state.user = Some(username.to_string());
         new_state.is_authenticated = status == 230;
         Some(new_state)
@@ -54,7 +54,7 @@ mod tests {
     fn user_valid_returns_331() {
         let state = SessionState::default();
         let argument = "foo";
-        let result = user_command_executor(state, argument);
+        let result = user_command_executor(&state, argument);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 331);
@@ -69,7 +69,7 @@ mod tests {
     fn user_anonymous_returns_230() {
         let state = SessionState::default();
         let argument = "anonymous";
-        let result = user_command_executor(state, argument);
+        let result = user_command_executor(&state, argument);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 230);
@@ -84,7 +84,7 @@ mod tests {
     fn user_no_argument_returns_501() {
         let state = SessionState::default();
         let argument = "";
-        let result = user_command_executor(state, argument);
+        let result = user_command_executor(&state, argument);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 501);

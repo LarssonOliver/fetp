@@ -6,7 +6,7 @@ use crate::{
 use super::ExecutionResult;
 
 pub(crate) fn acct_command_executor(
-    state: SessionState,
+    state: &SessionState,
     _argument: &str,
 ) -> Result<ExecutionResult, ExecutionError> {
     let mut result = ExecutionResult::default();
@@ -37,7 +37,7 @@ mod tests {
         state.previous_command = Some(Verb::PASS);
         state.is_authenticated = true;
 
-        let result = acct_command_executor(state, "").unwrap();
+        let result = acct_command_executor(&state, "").unwrap();
 
         assert_eq!(result.status, 202);
         assert_eq!(result.message, "Access already granted.")
@@ -49,7 +49,7 @@ mod tests {
         state.previous_command = Some(Verb::USER);
         state.is_authenticated = true;
 
-        let result = acct_command_executor(state, "").unwrap();
+        let result = acct_command_executor(&state, "").unwrap();
 
         assert_eq!(result.status, 503);
         assert_eq!(result.message, "Previous command must be PASS.")
@@ -61,7 +61,7 @@ mod tests {
         state.previous_command = Some(Verb::PASS);
         state.is_authenticated = false;
 
-        let result = acct_command_executor(state, "").unwrap();
+        let result = acct_command_executor(&state, "").unwrap();
 
         assert_eq!(result.status, 530);
         assert_eq!(result.message, "Not logged in.")

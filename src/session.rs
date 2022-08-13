@@ -70,7 +70,7 @@ impl Session {
                 }
             };
 
-            let result = handle_command(&command, &&self.state, &mut self.socket);
+            let ((status, msg), result) = run_command(&command, &&self.state);
             self.state = result;
         }
     }
@@ -134,13 +134,15 @@ fn trim_if_multiple_commands(buffer: &[u8]) -> &[u8] {
 }
 
 // TODO handle errors
-fn handle_command(command: &Command, state: &SessionState, out: &mut dyn Write) -> SessionState {
+fn run_command(
+    command: &Command,
+    current_state: &SessionState,
+) -> ((Status, String), SessionState) {
     let verb = command.verb.clone();
-    let result = command.execute(state.clone()).unwrap();
-    write(out, result.status, &result.message).unwrap();
+    let result = command.execute(current_state).unwrap();
     let mut new_state = result.new_state.unwrap();
     new_state.previous_command = Some(verb);
-    new_state
+    ((result.status, result.message), new_state)
 }
 
 #[cfg(test)]
@@ -232,12 +234,12 @@ mod tests {
             arg: "foo".to_string(),
         };
         let state = SessionState::default();
-        let mut stream = MockStream::default();
-        let new_state = handle_command(&command, &state, &mut stream);
+        let ((status, msg), new_state) = run_command(&command, &state);
 
         assert_eq!(new_state.user, Some("foo".to_string()));
         assert_eq!(new_state.is_authenticated, false);
         assert_eq!(new_state.previous_command, Some(verb));
-        assert!(stream.out.starts_with(b"331 "));
+        assert_eq!(status, 331);
+        assert!(msg != "");
     }
 }

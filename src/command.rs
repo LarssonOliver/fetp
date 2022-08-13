@@ -40,7 +40,7 @@ impl Command {
 
     pub(crate) fn execute(
         &self,
-        current_state: SessionState,
+        current_state: &SessionState,
     ) -> Result<executor::ExecutionResult, errors::ExecutionError> {
         let executor = self.verb.executor();
         executor(current_state, self.arg.as_str())
@@ -93,6 +93,7 @@ fn utf8_buffer_to_string(buffer: &[u8]) -> Result<String, CommandError> {
 
 fn extract_verb(buffer: &[u8]) -> Result<Verb, CommandError> {
     let string = str::from_utf8(&buffer[..VERB_LENGTH]).unwrap();
+
     match Verb::from_str(string) {
         Ok(verb) => Ok(verb),
         Err(err_str) => Err(CommandError(err_str)),
@@ -225,7 +226,7 @@ mod tests {
         let com = b"USER foo\t\n";
         let result = parse(com).unwrap();
         let state = SessionState::default();
-        let result = result.execute(state);
+        let result = result.execute(&state);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 331);

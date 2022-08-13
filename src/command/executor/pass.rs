@@ -7,14 +7,14 @@ use crate::{
 use super::ExecutionResult;
 
 pub(crate) fn pass_command_executor(
-    state: SessionState,
+    state: &SessionState,
     argument: &str,
 ) -> Result<ExecutionResult, ExecutionError> {
-    pass_command_executor_with_validator(state, argument, auth::validate)
+    pass_command_executor_with_validator(&state, argument, auth::validate)
 }
 
 fn pass_command_executor_with_validator(
-    state: SessionState,
+    state: &SessionState,
     argument: &str,
     validator: fn(&str, &str) -> bool,
 ) -> Result<ExecutionResult, ExecutionError> {
@@ -33,7 +33,7 @@ fn pass_command_executor_with_validator(
         result.status = 230;
         result.message.push_str("User logged in, proceed.");
 
-        let mut new_state = state;
+        let mut new_state = state.clone();
         new_state.is_authenticated = true;
         result.new_state = Some(new_state);
     } else {
@@ -61,7 +61,7 @@ mod tests {
         state.user = Some("foo".to_string());
         state.previous_command = Some(Verb::USER);
         let argument = "bar";
-        let result = pass_command_executor_with_validator(state, argument, validator);
+        let result = pass_command_executor_with_validator(&state, argument, validator);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 230);
@@ -78,7 +78,7 @@ mod tests {
         state.user = Some("foo".to_string());
         state.previous_command = Some(Verb::USER);
         let argument = "";
-        let result = pass_command_executor(state, argument);
+        let result = pass_command_executor(&state, argument);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 501);
@@ -93,7 +93,7 @@ mod tests {
         state.previous_command = Some(Verb::USER);
         state.is_authenticated = true;
         let argument = "";
-        let result = pass_command_executor(state, argument);
+        let result = pass_command_executor(&state, argument);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 202);
@@ -108,7 +108,7 @@ mod tests {
         state.user = Some("foo".to_string());
         state.previous_command = Some(Verb::USER);
         let argument = "baz";
-        let result = pass_command_executor_with_validator(state, argument, validator);
+        let result = pass_command_executor_with_validator(&state, argument, validator);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 530);
@@ -123,7 +123,7 @@ mod tests {
         state.user = Some("foo".to_string());
         state.previous_command = Some(Verb::ACCT);
         let argument = "bar";
-        let result = pass_command_executor_with_validator(state, argument, validator);
+        let result = pass_command_executor_with_validator(&state, argument, validator);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert_eq!(result.status, 503);
