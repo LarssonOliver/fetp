@@ -1,4 +1,5 @@
 pub(super) mod acct;
+pub(super) mod cdup;
 pub(super) mod cwd;
 pub(super) mod mode;
 pub(super) mod pass;

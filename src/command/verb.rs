@@ -3,6 +3,7 @@ use std::str::FromStr;
 use log::warn;
 
 use super::executor::acct::acct_command_executor;
+use super::executor::cdup::cdup_command_executor;
 use super::executor::cwd::cwd_command_executor;
 use super::executor::mode::mode_command_executor;
 use super::executor::pass::pass_command_executor;
@@ -25,6 +26,8 @@ pub enum Verb {
     XPWD,
     CWD,
     XCWD,
+    CDUP,
+    XCUP,
 }
 
 impl FromStr for Verb {
@@ -43,6 +46,8 @@ impl FromStr for Verb {
             "XPWD" => Ok(Verb::XPWD),
             "CWD" => Ok(Verb::CWD),
             "XCWD" => Ok(Verb::XCWD),
+            "CDUP" => Ok(Verb::CDUP),
+            "XDUP" => Ok(Verb::XCUP),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -62,6 +67,7 @@ impl Verb {
             Verb::MODE => mode_command_executor,
             Verb::PWD | Verb::XPWD => pwd_command_executor,
             Verb::CWD | Verb::XCWD => cwd_command_executor,
+            Verb::CDUP | Verb::XCUP => cdup_command_executor,
         }
     }
 }
@@ -138,6 +144,14 @@ mod tests {
         assert_eq!(
             Verb::XCWD.executor() as usize,
             cwd_command_executor as usize
+        );
+        assert_eq!(
+            Verb::CDUP.executor() as usize,
+            cdup_command_executor as usize
+        );
+        assert_eq!(
+            Verb::XCUP.executor() as usize,
+            cdup_command_executor as usize
         );
     }
 }
