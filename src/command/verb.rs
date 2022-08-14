@@ -3,6 +3,7 @@ use std::str::FromStr;
 use log::warn;
 
 use super::executor::acct::acct_command_executor;
+use super::executor::mode::mode_command_executor;
 use super::executor::pass::pass_command_executor;
 use super::executor::r#type::type_command_executor;
 use super::executor::stru::stru_command_executor;
@@ -17,7 +18,7 @@ pub enum Verb {
     ACCT,
     TYPE,
     STRU,
-    // MODE,
+    MODE,
 }
 
 impl FromStr for Verb {
@@ -31,6 +32,7 @@ impl FromStr for Verb {
             "ACCT" => Ok(Verb::ACCT),
             "TYPE" => Ok(Verb::TYPE),
             "STRU" => Ok(Verb::STRU),
+            "MODE" => Ok(Verb::MODE),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -47,6 +49,7 @@ impl Verb {
             Verb::ACCT => acct_command_executor,
             Verb::TYPE => type_command_executor,
             Verb::STRU => stru_command_executor,
+            Verb::MODE => mode_command_executor,
         }
     }
 }
@@ -109,6 +112,10 @@ mod tests {
         assert_eq!(
             Verb::STRU.executor() as usize,
             stru_command_executor as usize
+        );
+        assert_eq!(
+            Verb::MODE.executor() as usize,
+            mode_command_executor as usize
         );
     }
 }
