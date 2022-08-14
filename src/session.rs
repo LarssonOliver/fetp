@@ -155,7 +155,7 @@ fn run_command(
     current_state: &SessionState,
 ) -> ((Status, String), SessionState) {
     let result = command.execute(current_state).unwrap();
-    let mut new_state = result.new_state.unwrap();
+    let mut new_state = result.new_state.unwrap_or(current_state.clone());
     new_state.previous_command = Some(command.verb.clone());
     ((result.status, result.message), new_state)
 }
