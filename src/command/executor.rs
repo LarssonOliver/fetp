@@ -1,6 +1,7 @@
 pub(super) mod acct;
 pub(super) mod mode;
 pub(super) mod pass;
+pub(super) mod pwd;
 pub(super) mod stru;
 pub(super) mod r#type;
 pub(super) mod user;

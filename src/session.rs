@@ -3,12 +3,14 @@ mod io;
 use std::{
     io::{Read, Write},
     net::TcpStream,
+    path::PathBuf,
 };
 
 use log::{debug, error, info, warn};
 
 use crate::{
     command::{self, errors::CommandError, verb::Verb, Command},
+    config,
     session::io::write,
     status::Status,
 };
@@ -22,13 +24,28 @@ struct Session {
     state: SessionState,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
     pub(crate) previous_command: Option<Verb>,
     pub(crate) binary_flag: bool,
+    pub(crate) name_prefix: PathBuf,
+
     has_greeted: bool,
+}
+
+impl Default for SessionState {
+    fn default() -> Self {
+        Self {
+            user: None,
+            is_authenticated: false,
+            previous_command: None,
+            binary_flag: false,
+            has_greeted: false,
+            name_prefix: PathBuf::from(config::NAME_PREFIX),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,13 +67,7 @@ impl Session {
             socket: stream,
             read_socket,
             write_socket,
-            state: SessionState {
-                user: None,
-                is_authenticated: false,
-                previous_command: None,
-                binary_flag: false,
-                has_greeted: false,
-            },
+            state: SessionState::default(),
         }
     }
 }
