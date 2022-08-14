@@ -27,6 +27,7 @@ pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
     pub(crate) is_authenticated: bool,
     pub(crate) previous_command: Option<Verb>,
+    pub(crate) binary_flag: bool,
     has_greeted: bool,
 }
 
@@ -53,6 +54,7 @@ impl Session {
                 user: None,
                 is_authenticated: false,
                 previous_command: None,
+                binary_flag: false,
                 has_greeted: false,
             },
         }

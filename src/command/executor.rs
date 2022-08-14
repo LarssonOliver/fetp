@@ -1,5 +1,6 @@
 pub(super) mod acct;
 pub(super) mod pass;
+pub(super) mod r#type;
 pub(super) mod user;
 
 use crate::{session::SessionState, status::Status};

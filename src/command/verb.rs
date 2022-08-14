@@ -4,6 +4,7 @@ use log::warn;
 
 use super::executor::acct::acct_command_executor;
 use super::executor::pass::pass_command_executor;
+use super::executor::r#type::type_command_executor;
 use super::executor::user::user_command_executor;
 use super::executor::Executor;
 
@@ -13,6 +14,9 @@ pub enum Verb {
     USER,
     PASS,
     ACCT,
+    TYPE,
+    // STRU,
+    // MODE,
 }
 
 impl FromStr for Verb {
@@ -38,12 +42,15 @@ impl Verb {
             Verb::USER => user_command_executor,
             Verb::PASS => pass_command_executor,
             Verb::ACCT => acct_command_executor,
+            Verb::TYPE => type_command_executor,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::command::executor::r#type::type_command_executor;
+
     use super::*;
 
     #[test]
@@ -91,5 +98,9 @@ mod tests {
             Verb::ACCT.executor() as usize,
             acct_command_executor as usize
         );
+        assert_eq!(
+            Verb::TYPE.executor() as usize,
+            type_command_executor as usize
+        )
     }
 }
