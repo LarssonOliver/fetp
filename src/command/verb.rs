@@ -5,6 +5,7 @@ use log::warn;
 use super::executor::acct::acct_command_executor;
 use super::executor::pass::pass_command_executor;
 use super::executor::r#type::type_command_executor;
+use super::executor::stru::stru_command_executor;
 use super::executor::user::user_command_executor;
 use super::executor::Executor;
 
@@ -15,7 +16,7 @@ pub enum Verb {
     PASS,
     ACCT,
     TYPE,
-    // STRU,
+    STRU,
     // MODE,
 }
 
@@ -28,6 +29,8 @@ impl FromStr for Verb {
             "USER" => Ok(Verb::USER),
             "PASS" => Ok(Verb::PASS),
             "ACCT" => Ok(Verb::ACCT),
+            "TYPE" => Ok(Verb::TYPE),
+            "STRU" => Ok(Verb::STRU),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -43,13 +46,14 @@ impl Verb {
             Verb::PASS => pass_command_executor,
             Verb::ACCT => acct_command_executor,
             Verb::TYPE => type_command_executor,
+            Verb::STRU => stru_command_executor,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::command::executor::r#type::type_command_executor;
+    use crate::command::executor::{r#type::type_command_executor, stru::stru_command_executor};
 
     use super::*;
 
@@ -101,6 +105,10 @@ mod tests {
         assert_eq!(
             Verb::TYPE.executor() as usize,
             type_command_executor as usize
-        )
+        );
+        assert_eq!(
+            Verb::STRU.executor() as usize,
+            stru_command_executor as usize
+        );
     }
 }
