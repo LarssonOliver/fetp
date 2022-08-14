@@ -5,7 +5,7 @@ use std::{
     net::TcpStream,
 };
 
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 
 use crate::{
     command::{self, errors::CommandError, verb::Verb, Command},
@@ -82,41 +82,34 @@ fn handle_pass(session: &mut Session) -> ShouldExit {
     let command = match await_command(&mut session.read_socket) {
         Ok(command) => command,
         Err((status, message)) => {
-            let res = write(&mut session.write_socket, status, message.as_str());
-            if res.is_err() {
-                error!("Failed to write response to client");
-                return ShouldExit::Yes;
-            }
-            return ShouldExit::No;
+            return write_result_to_peer(&mut session.write_socket, status, &message)
         }
     };
 
-    let ((status, msg), result) = run_command(&command, &session.state);
+    let ((status, message), result) = run_command(&command, &session.state);
     session.state = result;
 
-    if let Err(error) = write(&mut session.write_socket, status, msg.as_str()) {
-        error!("Failed to write response to client: {}", error);
-        return ShouldExit::Yes;
-    }
-
-    ShouldExit::No
+    write_result_to_peer(&mut session.write_socket, status, &message)
 }
 
 fn handle_session_not_greeted(session: &mut Session) -> ShouldExit {
-    if greet_new_connection(&mut session.write_socket).is_err() {
-        return ShouldExit::Yes;
-    }
-
     session.state.has_greeted = true;
-    ShouldExit::No
+    greet_new_connection(&mut session.write_socket)
 }
 
-fn greet_new_connection(stream: &mut impl Write) -> Result<(), ()> {
-    match write(stream, 220, "Welcome to the FeTP FTP server.") {
-        Ok(_) => Ok(()),
+fn greet_new_connection(stream: &mut impl Write) -> ShouldExit {
+    write_result_to_peer(stream, 220, "Welcome to the FeTP FTP server.")
+}
+
+fn write_result_to_peer(stream: &mut impl Write, status: Status, message: &str) -> ShouldExit {
+    match write(stream, status, message) {
+        Ok(written) => {
+            info!("Wrote {} bytes.", written);
+            ShouldExit::No
+        }
         Err(error) => {
-            error!("Unable to write to socket: {}", error);
-            Err(())
+            error!("Failed to write response to client: {}", error);
+            ShouldExit::Yes
         }
     }
 }
@@ -255,7 +248,7 @@ mod tests {
     fn test_write_greeting() {
         let mut stream = MockStream::default();
         let result = greet_new_connection(&mut stream);
-        assert!(result.is_ok());
+        assert_eq!(result, ShouldExit::No);
         assert_eq!(stream.out, b"220 Welcome to the FeTP FTP server.\r\n");
     }
 
@@ -263,7 +256,7 @@ mod tests {
     fn write_greeting_error() {
         let mut stream = MockErrorStream::default();
         let result = greet_new_connection(&mut stream);
-        assert!(result.is_err());
+        assert_eq!(result, ShouldExit::Yes);
     }
 
     #[test]
@@ -344,6 +337,21 @@ mod tests {
         assert_eq!(new_state.previous_command, Some(verb));
         assert_eq!(status, 331);
         assert!(msg != "");
+    }
+
+    #[test]
+    fn write_result_correct() {
+        let mut stream = MockStream::default();
+        let res = write_result_to_peer(&mut stream, 200, "foobar");
+        assert_eq!(res, ShouldExit::No);
+        assert_eq!(stream.out, b"200 foobar\r\n");
+    }
+
+    #[test]
+    fn write_result_error() {
+        let mut stream = MockErrorStream {};
+        let res = write_result_to_peer(&mut stream, 200, "foobar");
+        assert_eq!(res, ShouldExit::Yes);
     }
 
     #[test]
