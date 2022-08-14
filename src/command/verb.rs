@@ -3,6 +3,7 @@ use std::str::FromStr;
 use log::warn;
 
 use super::executor::acct::acct_command_executor;
+use super::executor::cwd::cwd_command_executor;
 use super::executor::mode::mode_command_executor;
 use super::executor::pass::pass_command_executor;
 use super::executor::pwd::pwd_command_executor;
@@ -22,6 +23,8 @@ pub enum Verb {
     MODE,
     PWD,
     XPWD,
+    CWD,
+    XCWD,
 }
 
 impl FromStr for Verb {
@@ -38,6 +41,8 @@ impl FromStr for Verb {
             "MODE" => Ok(Verb::MODE),
             "PWD" => Ok(Verb::PWD),
             "XPWD" => Ok(Verb::XPWD),
+            "CWD" => Ok(Verb::CWD),
+            "XCWD" => Ok(Verb::XCWD),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -56,6 +61,7 @@ impl Verb {
             Verb::STRU => stru_command_executor,
             Verb::MODE => mode_command_executor,
             Verb::PWD | Verb::XPWD => pwd_command_executor,
+            Verb::CWD | Verb::XCWD => cwd_command_executor,
         }
     }
 }
@@ -127,6 +133,11 @@ mod tests {
         assert_eq!(
             Verb::XPWD.executor() as usize,
             pwd_command_executor as usize
+        );
+        assert_eq!(Verb::CWD.executor() as usize, cwd_command_executor as usize);
+        assert_eq!(
+            Verb::XCWD.executor() as usize,
+            cwd_command_executor as usize
         );
     }
 }
