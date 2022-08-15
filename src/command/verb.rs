@@ -7,8 +7,12 @@ use super::executor::cdup::cdup_command_executor;
 use super::executor::cwd::cwd_command_executor;
 use super::executor::mode::mode_command_executor;
 use super::executor::pass::pass_command_executor;
+use super::executor::pasv::pasv_command_executor;
+use super::executor::port::port_command_executor;
 use super::executor::pwd::pwd_command_executor;
 use super::executor::r#type::type_command_executor;
+use super::executor::rest::rest_command_executor;
+use super::executor::retr::retr_command_executor;
 use super::executor::stru::stru_command_executor;
 use super::executor::user::user_command_executor;
 use super::executor::Executor;
@@ -28,6 +32,10 @@ pub enum Verb {
     XCWD,
     CDUP,
     XCUP,
+    PASV,
+    PORT,
+    REST,
+    RETR,
 }
 
 impl FromStr for Verb {
@@ -48,6 +56,10 @@ impl FromStr for Verb {
             "XCWD" => Ok(Verb::XCWD),
             "CDUP" => Ok(Verb::CDUP),
             "XDUP" => Ok(Verb::XCUP),
+            "PASV" => Ok(Verb::PASV),
+            "PORT" => Ok(Verb::PORT),
+            "REST" => Ok(Verb::REST),
+            "RETR" => Ok(Verb::RETR),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -68,6 +80,10 @@ impl Verb {
             Verb::PWD | Verb::XPWD => pwd_command_executor,
             Verb::CWD | Verb::XCWD => cwd_command_executor,
             Verb::CDUP | Verb::XCUP => cdup_command_executor,
+            Verb::PASV => pasv_command_executor,
+            Verb::PORT => port_command_executor,
+            Verb::REST => rest_command_executor,
+            Verb::RETR => retr_command_executor,
         }
     }
 }
@@ -152,6 +168,22 @@ mod tests {
         assert_eq!(
             Verb::XCUP.executor() as usize,
             cdup_command_executor as usize
+        );
+        assert_eq!(
+            Verb::PASV.executor() as usize,
+            pasv_command_executor as usize
+        );
+        assert_eq!(
+            Verb::RETR.executor() as usize,
+            retr_command_executor as usize
+        );
+        assert_eq!(
+            Verb::REST.executor() as usize,
+            rest_command_executor as usize
+        );
+        assert_eq!(
+            Verb::PORT.executor() as usize,
+            port_command_executor as usize
         );
     }
 }
