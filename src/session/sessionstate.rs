@@ -1,4 +1,7 @@
-use std::{net::TcpListener, path::PathBuf};
+use std::{
+    net::{IpAddr, Ipv4Addr, TcpListener},
+    path::PathBuf,
+};
 
 use crate::{command::verb::Verb, config};
 
@@ -10,7 +13,25 @@ pub(crate) struct SessionState {
     pub(crate) name_prefix: PathBuf,
     pub(crate) has_greeted: bool,
 
+    pub(crate) local_ip: Ipv4Addr,
+    pub(crate) peer_ip: Ipv4Addr,
+
     pub(crate) data_listener: Option<TcpListener>,
+}
+
+impl SessionState {
+    pub fn new(local_ip: IpAddr, peer_ip: IpAddr) -> Self {
+        let mut state = Self::default();
+        state.local_ip = match local_ip {
+            IpAddr::V4(ip) => ip,
+            _ => panic!("Only IPv4 is supported"),
+        };
+        state.peer_ip = match peer_ip {
+            IpAddr::V4(ip) => ip,
+            _ => panic!("Only IPv4 is supported"),
+        };
+        state
+    }
 }
 
 impl Default for SessionState {
@@ -23,6 +44,8 @@ impl Default for SessionState {
             has_greeted: false,
             name_prefix: PathBuf::from(config::NAME_PREFIX),
             data_listener: None,
+            local_ip: Ipv4Addr::UNSPECIFIED,
+            peer_ip: Ipv4Addr::UNSPECIFIED,
         }
     }
 }
@@ -42,6 +65,31 @@ impl Clone for SessionState {
                 }
                 None => None,
             },
+            local_ip: self.local_ip.clone(),
+            peer_ip: self.peer_ip.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::Ipv6Addr;
+
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn ipv6_should_panic() {
+        let addr = IpAddr::V6(Ipv6Addr::LOCALHOST);
+        let ok = IpAddr::V4(Ipv4Addr::LOCALHOST);
+        let _ = SessionState::new(addr, ok);
+    }
+
+    #[test]
+    #[should_panic]
+    fn ipv6_peer_should_panic() {
+        let addr = IpAddr::V6(Ipv6Addr::LOCALHOST);
+        let ok = IpAddr::V4(Ipv4Addr::LOCALHOST);
+        let _ = SessionState::new(ok, addr);
     }
 }

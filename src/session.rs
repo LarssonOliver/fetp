@@ -39,11 +39,13 @@ impl Session {
     fn new(stream: TcpStream) -> Session {
         let read_socket = Box::new(stream.try_clone().expect("Failed to clone stream"));
         let write_socket = Box::new(stream.try_clone().expect("Failed to clone stream"));
+        let local_ip = stream.local_addr().unwrap().ip();
+        let peer_ip = stream.peer_addr().unwrap().ip();
         Session {
             socket: stream,
             read_socket,
             write_socket,
-            state: SessionState::default(),
+            state: SessionState::new(local_ip, peer_ip),
         }
     }
 }
