@@ -1,4 +1,4 @@
-use crate::{command::errors::ExecutionError, session::SessionState};
+use crate::{command::errors::ExecutionError, session::sessionstate::SessionState};
 
 use super::ExecutionResult;
 

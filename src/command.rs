@@ -7,7 +7,7 @@ use log::info;
 use regex::Regex;
 use std::str::{self, FromStr};
 
-use crate::{config, session::SessionState};
+use crate::{config, session::sessionstate::SessionState};
 use errors::CommandError;
 
 use self::verb::Verb;

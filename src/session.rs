@@ -1,8 +1,9 @@
 mod io;
+pub mod sessionstate;
 
 use std::{
     io::{Read, Write},
-    net::TcpStream,
+    net::{TcpListener, TcpStream},
     path::PathBuf,
 };
 
@@ -16,36 +17,13 @@ use crate::{
 };
 
 use self::io::read_line;
+use self::sessionstate::SessionState;
 
 struct Session {
     socket: TcpStream,
     read_socket: Box<dyn Read>,
     write_socket: Box<dyn Write>,
     state: SessionState,
-}
-
-#[derive(Clone)]
-pub(crate) struct SessionState {
-    pub(crate) user: Option<String>,
-    pub(crate) is_authenticated: bool,
-    pub(crate) previous_command: Option<Verb>,
-    pub(crate) binary_flag: bool,
-    pub(crate) name_prefix: PathBuf,
-
-    has_greeted: bool,
-}
-
-impl Default for SessionState {
-    fn default() -> Self {
-        Self {
-            user: None,
-            is_authenticated: false,
-            previous_command: None,
-            binary_flag: false,
-            has_greeted: false,
-            name_prefix: PathBuf::from(config::NAME_PREFIX),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]

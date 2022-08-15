@@ -1,6 +1,6 @@
 use crate::{
     command::{errors::ExecutionError, verb::Verb},
-    session::SessionState,
+    session::sessionstate::SessionState,
 };
 
 use super::ExecutionResult;

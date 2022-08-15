@@ -1,4 +1,4 @@
-use crate::{command::errors::ExecutionError, session::SessionState, status::Status};
+use crate::{command::errors::ExecutionError, session::sessionstate::SessionState, status::Status};
 
 use super::ExecutionResult;
 
@@ -46,7 +46,7 @@ fn user_update_state(
 
 #[cfg(test)]
 mod tests {
-    use crate::session::SessionState;
+    use crate::session::sessionstate::SessionState;
 
     use super::*;
 

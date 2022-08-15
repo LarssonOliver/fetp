@@ -1,7 +1,7 @@
 use crate::{
     auth,
     command::{errors::ExecutionError, verb::Verb},
-    session::SessionState,
+    session::sessionstate::SessionState,
 };
 
 use super::ExecutionResult;
