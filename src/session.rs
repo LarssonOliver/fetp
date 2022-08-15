@@ -3,15 +3,13 @@ pub mod sessionstate;
 
 use std::{
     io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    path::PathBuf,
+    net::TcpStream,
 };
 
 use log::{debug, error, info, warn};
 
 use crate::{
-    command::{self, errors::CommandError, verb::Verb, Command},
-    config,
+    command::{self, errors::CommandError, Command},
     session::io::write,
     status::Status,
 };
