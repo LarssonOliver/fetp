@@ -3,7 +3,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{command::verb::Verb, config};
+use crate::{command::verb::Verb, config, status::Status};
 
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
@@ -17,6 +17,7 @@ pub(crate) struct SessionState {
     pub(crate) peer_ip: Ipv4Addr,
 
     pub(crate) data_listener: Option<TcpListener>,
+    pub(crate) data_transfer_func: Option<fn(&SessionState, &str) -> (Status, String)>,
 }
 
 impl SessionState {
@@ -46,6 +47,7 @@ impl Default for SessionState {
             data_listener: None,
             local_ip: Ipv4Addr::UNSPECIFIED,
             peer_ip: Ipv4Addr::UNSPECIFIED,
+            data_transfer_func: None,
         }
     }
 }
@@ -67,6 +69,7 @@ impl Clone for SessionState {
             },
             local_ip: self.local_ip.clone(),
             peer_ip: self.peer_ip.clone(),
+            data_transfer_func: self.data_transfer_func.clone(),
         }
     }
 }
