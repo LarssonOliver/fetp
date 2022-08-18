@@ -1,5 +1,6 @@
 use std::{
-    net::{IpAddr, Ipv4Addr, TcpListener},
+    io::{Read, Write},
+    net::{IpAddr, Ipv4Addr, TcpListener, TcpStream},
     path::PathBuf,
 };
 
@@ -17,7 +18,16 @@ pub(crate) struct SessionState {
     pub(crate) peer_ip: Ipv4Addr,
 
     pub(crate) data_listener: Option<TcpListener>,
-    pub(crate) data_transfer_func: Option<fn(&SessionState, &str) -> (Status, String)>,
+    pub(crate) data_transfer_func: Option<
+        fn(
+            &SessionState,
+            &str,
+            read_stream: Option<&mut dyn Read>,
+            write_stream: Option<&mut dyn Write>,
+        ) -> (Status, String),
+    >,
+
+    pub(super) data_socket: Option<TcpStream>,
 }
 
 impl SessionState {
@@ -48,6 +58,7 @@ impl Default for SessionState {
             local_ip: Ipv4Addr::UNSPECIFIED,
             peer_ip: Ipv4Addr::UNSPECIFIED,
             data_transfer_func: None,
+            data_socket: None,
         }
     }
 }
@@ -70,6 +81,7 @@ impl Clone for SessionState {
             local_ip: self.local_ip.clone(),
             peer_ip: self.peer_ip.clone(),
             data_transfer_func: self.data_transfer_func.clone(),
+            data_socket: None,
         }
     }
 }
