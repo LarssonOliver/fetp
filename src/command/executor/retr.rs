@@ -33,8 +33,8 @@ pub(crate) fn retr_command_executor(
 }
 
 fn data_transfer_func(
-    _state: &SessionState,
     argument: &str,
+    start_position: usize,
     _read_stream: Option<&mut dyn Read>,
     write_stream: Option<&mut dyn Write>,
 ) -> (Status, String) {
@@ -86,8 +86,7 @@ mod tests {
 
     #[test]
     fn handle_no_connection() {
-        let state = SessionState::default();
-        let (status, msg) = data_transfer_func(&state, "", Some(&mut "".as_bytes()), None);
+        let (status, msg) = data_transfer_func("", 0, Some(&mut "".as_bytes()), None);
 
         assert_eq!(status, 425);
         assert_eq!(msg, "No data connection was established.");
@@ -108,10 +107,9 @@ mod tests {
 
     #[test]
     fn handle_write_error() {
-        let state = SessionState::default();
         let (status, msg) = data_transfer_func(
-            &state,
             "/bin/sh",
+            0,
             Some(&mut "".as_bytes()),
             Some(&mut MockErrorStream::default()),
         );
@@ -121,10 +119,9 @@ mod tests {
 
     #[test]
     fn handle_disk_error() {
-        let state = SessionState::default();
         let (status, msg) = data_transfer_func(
-            &state,
             "",
+            0,
             Some(&mut "".as_bytes()),
             Some(&mut BufWriter::new(vec![])),
         );
@@ -134,14 +131,9 @@ mod tests {
 
     #[test]
     fn write_file_to_out() {
-        let state = SessionState::default();
         let mut writer = BufWriter::new(vec![]);
-        let (status, msg) = data_transfer_func(
-            &state,
-            "/bin/sh",
-            Some(&mut "".as_bytes()),
-            Some(&mut writer),
-        );
+        let (status, msg) =
+            data_transfer_func("/bin/sh", 0, Some(&mut "".as_bytes()), Some(&mut writer));
         assert_eq!(status, 226);
         assert_eq!(msg, "Transfer complete.");
         assert_ne!(writer.into_inner().unwrap().len(), 0);

@@ -20,8 +20,8 @@ pub(crate) struct SessionState {
     pub(crate) data_listener: Option<TcpListener>,
     pub(crate) data_transfer_func: Option<
         fn(
-            &SessionState,
-            &str,
+            parameter: &str,
+            start_position: usize,
             read_stream: Option<&mut dyn Read>,
             write_stream: Option<&mut dyn Write>,
         ) -> (Status, String),
