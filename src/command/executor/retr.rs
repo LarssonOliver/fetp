@@ -48,7 +48,7 @@ fn data_transfer_func(
         Err(_) => return (551, "Server error.".to_string()),
     };
 
-    match stream.write(&file) {
+    match stream.write(&file[start_position..]) {
         Ok(_) => (226, "Transfer complete.".to_string()),
         Err(_) => (426, "Error while sending data.".to_string()),
     }
@@ -107,24 +107,15 @@ mod tests {
 
     #[test]
     fn handle_write_error() {
-        let (status, msg) = data_transfer_func(
-            "/bin/sh",
-            0,
-            Some(&mut "".as_bytes()),
-            Some(&mut MockErrorStream::default()),
-        );
+        let (status, msg) =
+            data_transfer_func("/bin/sh", 0, None, Some(&mut MockErrorStream::default()));
         assert_eq!(status, 426);
         assert_eq!(msg, "Error while sending data.");
     }
 
     #[test]
     fn handle_disk_error() {
-        let (status, msg) = data_transfer_func(
-            "",
-            0,
-            Some(&mut "".as_bytes()),
-            Some(&mut BufWriter::new(vec![])),
-        );
+        let (status, msg) = data_transfer_func("", 0, None, Some(&mut BufWriter::new(vec![])));
         assert_eq!(status, 551);
         assert_eq!(msg, "Server error.");
     }
@@ -132,10 +123,28 @@ mod tests {
     #[test]
     fn write_file_to_out() {
         let mut writer = BufWriter::new(vec![]);
-        let (status, msg) =
-            data_transfer_func("/bin/sh", 0, Some(&mut "".as_bytes()), Some(&mut writer));
+        let (status, msg) = data_transfer_func("/bin/sh", 0, None, Some(&mut writer));
         assert_eq!(status, 226);
         assert_eq!(msg, "Transfer complete.");
         assert_ne!(writer.into_inner().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn start_position() {
+        let mut writer = BufWriter::new(vec![]);
+        let _ = data_transfer_func("/bin/sh", 0, None, Some(&mut writer));
+        let writer_contents = writer.into_inner().unwrap();
+        let mut offset_writer = BufWriter::new(vec![]);
+        let _ = data_transfer_func("/bin/sh", 100, None, Some(&mut offset_writer));
+        let offset_writer_contents = offset_writer.into_inner().unwrap();
+
+        assert_eq!(writer_contents.len(), offset_writer_contents.len() + 100);
+        let equal_count = writer_contents[100..]
+            .iter()
+            .zip(&offset_writer_contents)
+            .filter(|&(a, b)| a == b)
+            .count();
+
+        assert_eq!(equal_count, writer_contents.len() - 100);
     }
 }
