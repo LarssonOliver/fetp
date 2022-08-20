@@ -1,8 +1,6 @@
-use std::{
-    fmt::write,
-    io::{Read, Write},
-    path::Path,
-};
+use std::io::{Read, Write};
+
+use log::{info, warn};
 
 use crate::{command::errors::ExecutionError, session::sessionstate::SessionState, status::Status};
 
@@ -12,7 +10,8 @@ pub(crate) fn retr_command_executor(
     state: &SessionState,
     argument: &str,
 ) -> Result<ExecutionResult, ExecutionError> {
-    let exists = Path::new(&argument).exists();
+    let file = state.name_prefix.join(argument);
+    let exists = file.exists();
 
     match exists {
         false => Ok(ExecutionResult {
@@ -23,6 +22,7 @@ pub(crate) fn retr_command_executor(
         true => {
             let mut new_state = state.clone();
             new_state.data_transfer_func = Some(data_transfer_func);
+            new_state.data_transfer_func_parameter = Some(file.to_str().unwrap().to_string());
             Ok(ExecutionResult {
                 status: 150,
                 message: "Opening data connection.".to_string(),
@@ -45,11 +45,17 @@ fn data_transfer_func(
 
     let file = match std::fs::read(argument) {
         Ok(file) => file,
-        Err(_) => return (551, "Server error.".to_string()),
+        Err(error) => {
+            warn!("Error reading file: {}", error);
+            return (551, "Server error.".to_string());
+        }
     };
 
     match stream.write(&file[start_position..]) {
-        Ok(_) => (226, "Transfer complete.".to_string()),
+        Ok(count) => {
+            info!("File sent, {} bytes transmitted.", count);
+            (226, "Transfer complete.".to_string())
+        }
         Err(_) => (426, "Error while sending data.".to_string()),
     }
 }
@@ -57,7 +63,7 @@ fn data_transfer_func(
 #[cfg(test)]
 mod tests {
 
-    use std::{io::BufWriter, vec};
+    use std::{io::BufWriter, path::PathBuf, vec};
 
     use super::*;
 
@@ -67,6 +73,15 @@ mod tests {
         let result = retr_command_executor(&state, "/usr/jksdlfkjsd").unwrap();
         assert_eq!(result.status, 550);
         assert_eq!(result.message, "File not found.");
+    }
+
+    #[test]
+    fn relative_file_exists() {
+        let mut state = SessionState::default();
+        state.name_prefix = PathBuf::from("/bin");
+        let result = retr_command_executor(&state, "sh").unwrap();
+        assert_eq!(result.status, 150);
+        assert_eq!(result.message, "Opening data connection.");
     }
 
     #[test]

@@ -80,7 +80,14 @@ fn handle_pass(session: &mut Session) -> ShouldExit {
     let ((status, message), result) = run_command(&command, &session.state);
     session.state = result;
 
-    write_result_to_peer(&mut session.write_socket, status, &message)
+    let mut should_exit = write_result_to_peer(&mut session.write_socket, status, &message);
+
+    if session.state.data_transfer_func.is_some() {
+        let (status, message) = process_data_request(&command.arg, &mut session.state);
+        should_exit = write_result_to_peer(&mut session.write_socket, status, &message);
+    }
+
+    should_exit
 }
 
 fn handle_session_not_greeted(session: &mut Session) -> ShouldExit {
@@ -136,6 +143,52 @@ fn run_command(
     let mut new_state = result.new_state.unwrap_or(current_state.clone());
     new_state.previous_command = Some(command.verb.clone());
     ((result.status, result.message), new_state)
+}
+
+fn process_data_request(argument: &str, state: &mut SessionState) -> (Status, String) {
+    if (state.data_listener.is_none() && state.data_socket.is_none())
+        || state.data_transfer_func.is_none()
+    {
+        return (425, "No data connection was established.".to_string());
+    }
+
+    if let Some(listener) = state.data_listener.as_mut() {
+        listener.set_nonblocking(true).unwrap();
+
+        state.data_socket = match listener.accept() {
+            Ok((stream, _)) => Some(stream),
+            Err(error) => {
+                warn!("Error accepting data connection: {}", error);
+                return (425, "Error accepting data connection.".to_string());
+            }
+        };
+    }
+
+    let result = match state.data_socket {
+        None => return (425, "Error accepting data connection.".to_string()),
+        Some(ref mut socket) => {
+            let mut read_stream = socket.try_clone().unwrap();
+            let mut write_stream = socket.try_clone().unwrap();
+            state.data_transfer_func.as_ref().unwrap()(
+                &state
+                    .data_transfer_func_parameter
+                    .as_ref()
+                    .unwrap_or(&String::new()),
+                state.file_offset,
+                Some(&mut read_stream),
+                Some(&mut write_stream),
+            )
+        }
+    };
+
+    state.data_listener = None;
+
+    if let Some(ref stream) = state.data_socket {
+        stream.shutdown(std::net::Shutdown::Both).unwrap();
+        state.data_socket = None;
+    }
+
+    result
 }
 
 fn end_session(stream: &mut TcpStream) {

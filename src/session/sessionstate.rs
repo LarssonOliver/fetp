@@ -13,6 +13,7 @@ pub(crate) struct SessionState {
     pub(crate) binary_flag: bool,
     pub(crate) name_prefix: PathBuf,
     pub(crate) has_greeted: bool,
+    pub(crate) file_offset: usize,
 
     pub(crate) local_ip: Ipv4Addr,
     pub(crate) peer_ip: Ipv4Addr,
@@ -26,6 +27,7 @@ pub(crate) struct SessionState {
             write_stream: Option<&mut dyn Write>,
         ) -> (Status, String),
     >,
+    pub(crate) data_transfer_func_parameter: Option<String>,
 
     pub(super) data_socket: Option<TcpStream>,
 }
@@ -59,6 +61,8 @@ impl Default for SessionState {
             peer_ip: Ipv4Addr::UNSPECIFIED,
             data_transfer_func: None,
             data_socket: None,
+            file_offset: 0,
+            data_transfer_func_parameter: None,
         }
     }
 }
@@ -73,15 +77,18 @@ impl Clone for SessionState {
             has_greeted: self.has_greeted,
             name_prefix: self.name_prefix.clone(),
             data_listener: match self.data_listener {
-                Some(ref listener) => {
-                    Some(listener.try_clone().expect("Failed to clone data listener"))
-                }
+                Some(ref listener) => Some(listener.try_clone().unwrap()),
                 None => None,
             },
             local_ip: self.local_ip.clone(),
             peer_ip: self.peer_ip.clone(),
             data_transfer_func: self.data_transfer_func.clone(),
-            data_socket: None,
+            data_socket: match self.data_socket {
+                Some(ref socket) => Some(socket.try_clone().unwrap()),
+                None => None,
+            },
+            file_offset: self.file_offset,
+            data_transfer_func_parameter: self.data_transfer_func_parameter.clone(),
         }
     }
 }
