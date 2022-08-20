@@ -32,6 +32,7 @@ pub(crate) fn retr_command_executor(
     }
 }
 
+// TODO handle MODE (bin, ascii)
 fn data_transfer_func(
     argument: &str,
     start_position: usize,
