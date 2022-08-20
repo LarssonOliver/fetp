@@ -4,12 +4,14 @@ pub mod sessionstate;
 use std::{
     io::{Read, Write},
     net::TcpStream,
+    time::SystemTime,
 };
 
 use log::{debug, error, info, warn};
 
 use crate::{
     command::{self, errors::CommandError, Command},
+    config::PASSIVE_DATA_CONNECTION_TIMEOUT_MS,
     session::io::write,
     status::Status,
 };
@@ -65,6 +67,7 @@ fn run_session(session: &mut Session, pass_handler: impl Fn(&mut Session) -> Sho
     debug!("Session ended with peer {}", peer_addr);
 }
 
+// TODO Unit tests
 fn handle_pass(session: &mut Session) -> ShouldExit {
     if !session.state.has_greeted {
         return handle_session_not_greeted(session);
@@ -83,7 +86,7 @@ fn handle_pass(session: &mut Session) -> ShouldExit {
     let mut should_exit = write_result_to_peer(&mut session.write_socket, status, &message);
 
     if session.state.data_transfer_func.is_some() {
-        let (status, message) = process_data_request(&command.arg, &mut session.state);
+        let (status, message) = process_data_request(&mut session.state);
         should_exit = write_result_to_peer(&mut session.write_socket, status, &message);
     }
 
@@ -145,7 +148,8 @@ fn run_command(
     ((result.status, result.message), new_state)
 }
 
-fn process_data_request(argument: &str, state: &mut SessionState) -> (Status, String) {
+// TODO Unit tests
+fn process_data_request(state: &mut SessionState) -> (Status, String) {
     if (state.data_listener.is_none() && state.data_socket.is_none())
         || state.data_transfer_func.is_none()
     {
@@ -155,13 +159,31 @@ fn process_data_request(argument: &str, state: &mut SessionState) -> (Status, St
     if let Some(listener) = state.data_listener.as_mut() {
         listener.set_nonblocking(true).unwrap();
 
-        state.data_socket = match listener.accept() {
-            Ok((stream, _)) => Some(stream),
-            Err(error) => {
-                warn!("Error accepting data connection: {}", error);
-                return (425, "Error accepting data connection.".to_string());
-            }
-        };
+        let start_time = SystemTime::now();
+
+        loop {
+            // ! This is probably a race condition, handle this with a timeout?
+            state.data_socket = match listener.accept() {
+                Ok((stream, _)) => Some(stream),
+                Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    if SystemTime::now()
+                        .duration_since(start_time)
+                        .unwrap()
+                        .as_millis()
+                        > PASSIVE_DATA_CONNECTION_TIMEOUT_MS
+                    {
+                        warn!("Error accepting data connection: {}", error);
+                        return (425, "Data connection timed out.".to_string());
+                    }
+                    continue;
+                }
+                Err(error) => {
+                    warn!("Error accepting data connection: {}", error);
+                    return (425, "Data connection failed.".to_string());
+                }
+            };
+            break;
+        }
     }
 
     let result = match state.data_socket {
@@ -181,12 +203,14 @@ fn process_data_request(argument: &str, state: &mut SessionState) -> (Status, St
         }
     };
 
-    state.data_listener = None;
-
     if let Some(ref stream) = state.data_socket {
         stream.shutdown(std::net::Shutdown::Both).unwrap();
         state.data_socket = None;
     }
+
+    state.data_listener = None;
+    state.data_transfer_func = None;
+    state.data_transfer_func_parameter = None;
 
     result
 }

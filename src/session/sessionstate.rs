@@ -68,6 +68,7 @@ impl Default for SessionState {
 }
 
 impl Clone for SessionState {
+    // TODO This is called twice each command, should be once.
     fn clone(&self) -> Self {
         Self {
             user: self.user.clone(),
