@@ -11,7 +11,6 @@ use log::{debug, error, info, warn};
 
 use crate::{
     command::{self, errors::CommandError, Command},
-    config::PASSIVE_DATA_CONNECTION_TIMEOUT_MS,
     session::io::write,
     status::Status,
 };
@@ -159,31 +158,14 @@ fn process_data_request(state: &mut SessionState) -> (Status, String) {
     if let Some(listener) = state.data_listener.as_mut() {
         listener.set_nonblocking(true).unwrap();
 
-        let start_time = SystemTime::now();
-
-        loop {
-            // ! This is probably a race condition, handle this with a timeout?
-            state.data_socket = match listener.accept() {
-                Ok((stream, _)) => Some(stream),
-                Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    if SystemTime::now()
-                        .duration_since(start_time)
-                        .unwrap()
-                        .as_millis()
-                        > PASSIVE_DATA_CONNECTION_TIMEOUT_MS
-                    {
-                        warn!("Error accepting data connection: {}", error);
-                        return (425, "Data connection timed out.".to_string());
-                    }
-                    continue;
-                }
-                Err(error) => {
-                    warn!("Error accepting data connection: {}", error);
-                    return (425, "Data connection failed.".to_string());
-                }
-            };
-            break;
-        }
+        // ! This is probably a race condition, handle this with a timeout?
+        state.data_socket = match listener.accept() {
+            Ok((stream, _)) => Some(stream),
+            Err(error) => {
+                warn!("Error accepting data connection: {}", error);
+                return (425, "Data connection failed.".to_string());
+            }
+        };
     }
 
     let result = match state.data_socket {

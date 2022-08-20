@@ -13,5 +13,3 @@ pub const LISTEN_PORT: u16 = 2121;
 pub const LISTEN_ADDR: &str = "0.0.0.0";
 
 pub const NAME_PREFIX: &str = "/";
-
-pub const PASSIVE_DATA_CONNECTION_TIMEOUT_MS: u128 = 200;
