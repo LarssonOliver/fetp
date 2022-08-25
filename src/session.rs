@@ -4,7 +4,6 @@ pub mod sessionstate;
 use std::{
     io::{Read, Write},
     net::TcpStream,
-    time::SystemTime,
 };
 
 use log::{debug, error, info, warn};
