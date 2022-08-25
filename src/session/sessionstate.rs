@@ -1,10 +1,17 @@
 use std::{
     io::{Read, Write},
-    net::{IpAddr, Ipv4Addr, TcpListener, TcpStream},
+    net::{IpAddr, Ipv4Addr, SocketAddrV4, TcpListener, TcpStream},
     path::PathBuf,
 };
 
 use crate::{command::verb::Verb, config, status::Status};
+
+type TransferFunc = fn(
+    parameter: &str,
+    start_position: usize,
+    read_stream: Option<&mut dyn Read>,
+    write_stream: Option<&mut dyn Write>,
+) -> (Status, String);
 
 pub(crate) struct SessionState {
     pub(crate) user: Option<String>,
@@ -18,15 +25,10 @@ pub(crate) struct SessionState {
     pub(crate) local_ip: Ipv4Addr,
     pub(crate) peer_ip: Ipv4Addr,
 
+    pub(crate) port_ip: Option<SocketAddrV4>,
     pub(crate) data_listener: Option<TcpListener>,
-    pub(crate) data_transfer_func: Option<
-        fn(
-            parameter: &str,
-            start_position: usize,
-            read_stream: Option<&mut dyn Read>,
-            write_stream: Option<&mut dyn Write>,
-        ) -> (Status, String),
-    >,
+
+    pub(crate) data_transfer_func: Option<TransferFunc>,
     pub(crate) data_transfer_func_parameter: Option<String>,
 
     pub(super) data_socket: Option<TcpStream>,
@@ -59,6 +61,7 @@ impl Default for SessionState {
             data_listener: None,
             local_ip: Ipv4Addr::UNSPECIFIED,
             peer_ip: Ipv4Addr::UNSPECIFIED,
+            port_ip: None,
             data_transfer_func: None,
             data_socket: None,
             file_offset: 0,
@@ -83,6 +86,7 @@ impl Clone for SessionState {
             },
             local_ip: self.local_ip.clone(),
             peer_ip: self.peer_ip.clone(),
+            port_ip: self.port_ip.clone(),
             data_transfer_func: self.data_transfer_func.clone(),
             data_socket: match self.data_socket {
                 Some(ref socket) => Some(socket.try_clone().unwrap()),

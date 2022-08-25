@@ -148,7 +148,7 @@ fn run_command(
 
 // TODO Unit tests
 fn process_data_request(state: &mut SessionState) -> (Status, String) {
-    if (state.data_listener.is_none() && state.data_socket.is_none())
+    if (state.data_listener.is_none() && state.port_ip.is_none())
         || state.data_transfer_func.is_none()
     {
         return (425, "No data connection was established.".to_string());
@@ -165,6 +165,13 @@ fn process_data_request(state: &mut SessionState) -> (Status, String) {
                 return (425, "Data connection failed.".to_string());
             }
         };
+    } else if let Some(address) = state.port_ip {
+        let socket = match TcpStream::connect(address) {
+            Ok(socket) => Some(socket),
+            Err(_) => None,
+        };
+
+        state.data_socket = socket;
     }
 
     let result = match state.data_socket {
