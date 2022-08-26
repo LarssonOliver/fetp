@@ -6,7 +6,10 @@ mod status;
 
 use log::{debug, error, info};
 
-use std::net::{TcpListener, TcpStream};
+use std::{
+    net::{TcpListener, TcpStream},
+    thread,
+};
 
 fn main() {
     init_logger();
@@ -39,7 +42,7 @@ fn listen(handler: fn(TcpStream)) {
             }
         };
 
-        handler(stream);
+        thread::spawn(move || handler(stream));
     }
 }
 
