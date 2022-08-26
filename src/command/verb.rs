@@ -5,7 +5,9 @@ use log::warn;
 use super::executor::acct::acct_command_executor;
 use super::executor::cdup::cdup_command_executor;
 use super::executor::cwd::cwd_command_executor;
+use super::executor::help::help_command_executor;
 use super::executor::mode::mode_command_executor;
+use super::executor::noop::noop_command_executor;
 use super::executor::pass::pass_command_executor;
 use super::executor::pasv::pasv_command_executor;
 use super::executor::port::port_command_executor;
@@ -13,7 +15,9 @@ use super::executor::pwd::pwd_command_executor;
 use super::executor::r#type::type_command_executor;
 use super::executor::rest::rest_command_executor;
 use super::executor::retr::retr_command_executor;
+use super::executor::stat::stat_command_executor;
 use super::executor::stru::stru_command_executor;
+use super::executor::syst::syst_command_executor;
 use super::executor::user::user_command_executor;
 use super::executor::Executor;
 
@@ -36,6 +40,10 @@ pub enum Verb {
     PORT,
     REST,
     RETR,
+    SYST,
+    STAT,
+    HELP,
+    NOOP,
 }
 
 impl FromStr for Verb {
@@ -60,6 +68,10 @@ impl FromStr for Verb {
             "PORT" => Ok(Verb::PORT),
             "REST" => Ok(Verb::REST),
             "RETR" => Ok(Verb::RETR),
+            "SYST" => Ok(Verb::SYST),
+            "STAT" => Ok(Verb::STAT),
+            "HELP" => Ok(Verb::HELP),
+            "NOOP" => Ok(Verb::NOOP),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -84,6 +96,10 @@ impl Verb {
             Verb::PORT => port_command_executor,
             Verb::REST => rest_command_executor,
             Verb::RETR => retr_command_executor,
+            Verb::SYST => syst_command_executor,
+            Verb::STAT => stat_command_executor,
+            Verb::HELP => help_command_executor,
+            Verb::NOOP => noop_command_executor,
         }
     }
 }
@@ -184,6 +200,22 @@ mod tests {
         assert_eq!(
             Verb::PORT.executor() as usize,
             port_command_executor as usize
+        );
+        assert_eq!(
+            Verb::SYST.executor() as usize,
+            syst_command_executor as usize
+        );
+        assert_eq!(
+            Verb::STAT.executor() as usize,
+            stat_command_executor as usize
+        );
+        assert_eq!(
+            Verb::HELP.executor() as usize,
+            help_command_executor as usize
+        );
+        assert_eq!(
+            Verb::NOOP.executor() as usize,
+            noop_command_executor as usize
         );
     }
 }
