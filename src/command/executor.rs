@@ -8,6 +8,7 @@ pub(super) mod pass;
 pub(super) mod pasv;
 pub(super) mod port;
 pub(super) mod pwd;
+pub(super) mod quit;
 pub(super) mod rest;
 pub(super) mod retr;
 pub(super) mod stat;

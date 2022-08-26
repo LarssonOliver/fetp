@@ -12,6 +12,7 @@ use super::executor::pass::pass_command_executor;
 use super::executor::pasv::pasv_command_executor;
 use super::executor::port::port_command_executor;
 use super::executor::pwd::pwd_command_executor;
+use super::executor::quit::quit_command_executor;
 use super::executor::r#type::type_command_executor;
 use super::executor::rest::rest_command_executor;
 use super::executor::retr::retr_command_executor;
@@ -44,6 +45,7 @@ pub enum Verb {
     STAT,
     HELP,
     NOOP,
+    QUIT,
 }
 
 impl FromStr for Verb {
@@ -72,6 +74,7 @@ impl FromStr for Verb {
             "STAT" => Ok(Verb::STAT),
             "HELP" => Ok(Verb::HELP),
             "NOOP" => Ok(Verb::NOOP),
+            "QUIT" => Ok(Verb::QUIT),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -100,14 +103,13 @@ impl Verb {
             Verb::STAT => stat_command_executor,
             Verb::HELP => help_command_executor,
             Verb::NOOP => noop_command_executor,
+            Verb::QUIT => quit_command_executor,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::command::executor::{r#type::type_command_executor, stru::stru_command_executor};
-
     use super::*;
 
     #[test]
@@ -216,6 +218,10 @@ mod tests {
         assert_eq!(
             Verb::NOOP.executor() as usize,
             noop_command_executor as usize
+        );
+        assert_eq!(
+            Verb::QUIT.executor() as usize,
+            quit_command_executor as usize
         );
     }
 }

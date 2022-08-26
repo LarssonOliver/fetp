@@ -6,10 +6,10 @@ use std::{
     net::TcpStream,
 };
 
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 
 use crate::{
-    command::{self, errors::CommandError, Command},
+    command::{self, errors::CommandError, verb::Verb, Command},
     session::io::write,
     status::Status,
 };
@@ -52,7 +52,7 @@ impl Session {
 
 fn run_session(session: &mut Session, pass_handler: impl Fn(&mut Session) -> ShouldExit) {
     let peer_addr = session.socket.peer_addr().unwrap();
-    debug!("New session started with peer {}", peer_addr);
+    info!("New session started with peer {}", peer_addr);
     loop {
         match pass_handler(session) {
             ShouldExit::No => continue,
@@ -62,7 +62,7 @@ fn run_session(session: &mut Session, pass_handler: impl Fn(&mut Session) -> Sho
             }
         }
     }
-    debug!("Session ended with peer {}", peer_addr);
+    info!("Session ended with peer {}", peer_addr);
 }
 
 // TODO Unit tests
@@ -82,6 +82,10 @@ fn handle_pass(session: &mut Session) -> ShouldExit {
     session.state = result;
 
     let mut should_exit = write_result_to_peer(&mut session.write_socket, status, &message);
+
+    if session.state.previous_command == Some(Verb::QUIT) {
+        return ShouldExit::Yes;
+    }
 
     if session.state.data_transfer_func.is_some() {
         let (status, message) = process_data_request(&mut session.state);
