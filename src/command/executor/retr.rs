@@ -98,6 +98,8 @@ mod tests {
             new_state.data_transfer_func.unwrap() as usize,
             data_transfer_func as usize
         );
+        assert!(new_state.data_transfer_func_parameter.is_some());
+        assert_eq!(new_state.data_transfer_func_parameter.unwrap(), "/bin/sh");
     }
 
     #[test]

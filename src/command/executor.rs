@@ -3,6 +3,7 @@ pub(super) mod cdup;
 pub(super) mod cwd;
 pub(super) mod help;
 pub(super) mod mode;
+pub(super) mod nlst;
 pub(super) mod noop;
 pub(super) mod pass;
 pub(super) mod pasv;
