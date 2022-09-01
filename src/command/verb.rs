@@ -3,10 +3,14 @@ use std::str::FromStr;
 use log::warn;
 
 use super::executor::acct::acct_command_executor;
+use super::executor::allo::allo_command_executor;
+use super::executor::appe::appe_command_executor;
 use super::executor::cdup::cdup_command_executor;
 use super::executor::cwd::cwd_command_executor;
+use super::executor::dele::dele_command_executor;
 use super::executor::help::help_command_executor;
 use super::executor::list::list_command_executor;
+use super::executor::mkd::mkd_command_executor;
 use super::executor::mode::mode_command_executor;
 use super::executor::nlst::nlst_command_executor;
 use super::executor::noop::noop_command_executor;
@@ -18,7 +22,12 @@ use super::executor::quit::quit_command_executor;
 use super::executor::r#type::type_command_executor;
 use super::executor::rest::rest_command_executor;
 use super::executor::retr::retr_command_executor;
+use super::executor::rmd::rmd_command_executor;
+use super::executor::rnfr::rnfr_command_executor;
+use super::executor::rnto::rnto_command_executor;
 use super::executor::stat::stat_command_executor;
+use super::executor::stor::stor_command_executor;
+use super::executor::stou::stou_command_executor;
 use super::executor::stru::stru_command_executor;
 use super::executor::syst::syst_command_executor;
 use super::executor::user::user_command_executor;
@@ -50,6 +59,17 @@ pub enum Verb {
     QUIT,
     NLST,
     LIST,
+    STOR,
+    APPE,
+    STOU,
+    ALLO,
+    MKD,
+    XMKD,
+    RMD,
+    XRMD,
+    DELE,
+    RNTO,
+    RNFR,
 }
 
 impl FromStr for Verb {
@@ -81,6 +101,17 @@ impl FromStr for Verb {
             "QUIT" => Ok(Verb::QUIT),
             "NLST" => Ok(Verb::NLST),
             "LIST" => Ok(Verb::LIST),
+            "STOR" => Ok(Verb::STOR),
+            "APPE" => Ok(Verb::APPE),
+            "STOU" => Ok(Verb::STOU),
+            "ALLO" => Ok(Verb::ALLO),
+            "MKD" => Ok(Verb::MKD),
+            "XMKD" => Ok(Verb::XMKD),
+            "RMD" => Ok(Verb::RMD),
+            "XRMD" => Ok(Verb::XRMD),
+            "DELE" => Ok(Verb::DELE),
+            "RNFR" => Ok(Verb::RNFR),
+            "RNTO" => Ok(Verb::RNTO),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -112,6 +143,15 @@ impl Verb {
             Verb::QUIT => quit_command_executor,
             Verb::NLST => nlst_command_executor,
             Verb::LIST => list_command_executor,
+            Verb::STOR => stor_command_executor,
+            Verb::APPE => appe_command_executor,
+            Verb::STOU => stou_command_executor,
+            Verb::ALLO => allo_command_executor,
+            Verb::MKD | Verb::XMKD => mkd_command_executor,
+            Verb::RMD | Verb::XRMD => rmd_command_executor,
+            Verb::DELE => dele_command_executor,
+            Verb::RNFR => rnfr_command_executor,
+            Verb::RNTO => rnto_command_executor,
         }
     }
 }
@@ -238,6 +278,44 @@ mod tests {
         assert_eq!(
             Verb::LIST.executor() as usize,
             list_command_executor as usize
+        );
+        assert_eq!(
+            Verb::STOR.executor() as usize,
+            stor_command_executor as usize
+        );
+        assert_eq!(
+            Verb::APPE.executor() as usize,
+            appe_command_executor as usize
+        );
+        assert_eq!(
+            Verb::STOU.executor() as usize,
+            stou_command_executor as usize
+        );
+        assert_eq!(
+            Verb::ALLO.executor() as usize,
+            allo_command_executor as usize
+        );
+        assert_eq!(Verb::MKD.executor() as usize, mkd_command_executor as usize);
+        assert_eq!(
+            Verb::XMKD.executor() as usize,
+            mkd_command_executor as usize
+        );
+        assert_eq!(Verb::RMD.executor() as usize, rmd_command_executor as usize);
+        assert_eq!(
+            Verb::XRMD.executor() as usize,
+            rmd_command_executor as usize
+        );
+        assert_eq!(
+            Verb::DELE.executor() as usize,
+            dele_command_executor as usize
+        );
+        assert_eq!(
+            Verb::RNFR.executor() as usize,
+            rnfr_command_executor as usize
+        );
+        assert_eq!(
+            Verb::RNTO.executor() as usize,
+            rnto_command_executor as usize
         );
     }
 }
