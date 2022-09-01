@@ -89,10 +89,7 @@ fn read_paths(path: &str) -> Result<Vec<PathBuf>, (Status, String)> {
         Err(ref err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
             return Err((451, "Error reading directory or file.".to_string()))
         }
-        Err(_) => match glob(path) {
-            Ok(paths) => extract_from_glob(paths),
-            Err(_) => return Err((451, "Error reading from disk.".to_string())),
-        },
+        Err(_) => extract_from_glob(glob(path).expect("Glob error.")),
     };
 
     Ok(res)
