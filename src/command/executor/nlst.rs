@@ -1,4 +1,12 @@
-use std::io::{Read, Write};
+use std::{
+    ffi::OsStr,
+    fs::read_dir,
+    io::{Read, Write},
+    path::PathBuf,
+};
+
+use glob::{glob, Paths};
+use log::{info, warn};
 
 use crate::{command::errors::ExecutionError, session::sessionstate::SessionState, status::Status};
 
@@ -37,11 +45,61 @@ pub(crate) fn nlst_command_executor(
 
 fn data_transfer_func(
     argument: &str,
-    start_position: usize,
+    _start_position: usize,
     _read_stream: Option<&mut dyn Read>,
     write_stream: Option<&mut dyn Write>,
 ) -> (Status, String) {
-    todo!()
+    let out_stream = match write_stream {
+        Some(stream) => stream,
+        None => return (425, "No data connection was established.".to_string()),
+    };
+
+    let paths = match read_paths(argument) {
+        Ok(paths) => paths,
+        Err(out) => return out,
+    };
+
+    let outbuf = create_output(&paths);
+
+    match out_stream.write(outbuf.as_bytes()) {
+        Ok(bytes) => {
+            info!("Wrote {} bytes", bytes);
+            (226, "Transfer complete.".to_string())
+        }
+        Err(error) => {
+            warn!("Error while writing data stream: {}", error);
+            (426, "Error while sending data.".to_string())
+        }
+    }
+}
+
+fn create_output(paths: &Vec<PathBuf>) -> String {
+    paths
+        .iter()
+        .filter_map(|x| x.file_name())
+        .filter_map(OsStr::to_str)
+        .fold(String::new(), |acc: String, x: &str| {
+            format!("{}{}\r\n", acc, x)
+        })
+}
+
+fn read_paths(path: &str) -> Result<Vec<PathBuf>, (Status, String)> {
+    let res = match read_dir(path) {
+        Ok(dir) => dir.filter_map(Result::ok).map(|x| x.path()).collect(),
+        Err(ref err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            return Err((451, "Error reading directory or file.".to_string()))
+        }
+        Err(_) => match glob(path) {
+            Ok(paths) => extract_from_glob(paths),
+            Err(_) => return Err((451, "Error reading from disk.".to_string())),
+        },
+    };
+
+    Ok(res)
+}
+
+fn extract_from_glob(glob_out: Paths) -> Vec<PathBuf> {
+    glob_out.filter_map(Result::ok).collect()
 }
 
 #[cfg(test)]

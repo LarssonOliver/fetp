@@ -6,7 +6,9 @@ use super::executor::acct::acct_command_executor;
 use super::executor::cdup::cdup_command_executor;
 use super::executor::cwd::cwd_command_executor;
 use super::executor::help::help_command_executor;
+use super::executor::list::list_command_executor;
 use super::executor::mode::mode_command_executor;
+use super::executor::nlst::nlst_command_executor;
 use super::executor::noop::noop_command_executor;
 use super::executor::pass::pass_command_executor;
 use super::executor::pasv::pasv_command_executor;
@@ -46,6 +48,8 @@ pub enum Verb {
     HELP,
     NOOP,
     QUIT,
+    NLST,
+    LIST,
 }
 
 impl FromStr for Verb {
@@ -75,6 +79,8 @@ impl FromStr for Verb {
             "HELP" => Ok(Verb::HELP),
             "NOOP" => Ok(Verb::NOOP),
             "QUIT" => Ok(Verb::QUIT),
+            "NLST" => Ok(Verb::NLST),
+            "LIST" => Ok(Verb::LIST),
             _ => {
                 warn!("Unknown verb: {}", s);
                 Err(format!("Unknown verb: {}", s))
@@ -104,6 +110,8 @@ impl Verb {
             Verb::HELP => help_command_executor,
             Verb::NOOP => noop_command_executor,
             Verb::QUIT => quit_command_executor,
+            Verb::NLST => nlst_command_executor,
+            Verb::LIST => list_command_executor,
         }
     }
 }
@@ -222,6 +230,14 @@ mod tests {
         assert_eq!(
             Verb::QUIT.executor() as usize,
             quit_command_executor as usize
+        );
+        assert_eq!(
+            Verb::NLST.executor() as usize,
+            nlst_command_executor as usize
+        );
+        assert_eq!(
+            Verb::LIST.executor() as usize,
+            list_command_executor as usize
         );
     }
 }
