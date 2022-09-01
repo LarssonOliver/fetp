@@ -1,13 +1,12 @@
 use std::{
-    ffi::OsStr,
     fs::read_dir,
     io::{Read, Write},
     os::unix::prelude::MetadataExt,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::SystemTime,
 };
 
-use chrono::{format::strftime, DateTime, Duration, Local};
+use chrono::{DateTime, Duration, Local};
 use glob::{glob, Paths};
 use log::{info, warn};
 
