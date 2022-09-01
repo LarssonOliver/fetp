@@ -2,6 +2,7 @@ pub(super) mod acct;
 pub(super) mod cdup;
 pub(super) mod cwd;
 pub(super) mod help;
+pub(super) mod list;
 pub(super) mod mode;
 pub(super) mod nlst;
 pub(super) mod noop;
